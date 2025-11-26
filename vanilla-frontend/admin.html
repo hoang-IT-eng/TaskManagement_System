@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel - Task Management System</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-content">
+      <a href="dashboard.html" class="navbar-brand" data-i18n="nav.taskManage">📋 SmartWork</a>
+      <ul class="navbar-menu">
+        <li><a href="dashboard.html" data-i18n="nav.dashboard">Dashboard</a></li>
+        <li><a href="projects.html" data-i18n="nav.projects">Projects</a></li>
+        <li><a href="teams.html" data-i18n="nav.teams">Teams</a></li>
+        <li><a href="reports.html" data-i18n="nav.reports">Reports</a></li>
+        <li><a href="admin.html" data-i18n="nav.admin">Admin</a></li>
+      </ul>
+      <div class="navbar-user">
+        <div id="languageSwitcher"></div>
+        <div class="navbar-avatar" id="userAvatar"></div>
+        <span id="userName"></span>
+        <button class="btn btn-sm btn-secondary" onclick="Auth.logout()" data-i18n="common.logout">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="container" style="padding-top: 2rem; padding-bottom: 2rem;">
+    <div class="page-header">
+      <h1 class="page-title">👑 Admin Panel</h1>
+      <p class="page-subtitle">Manage users and system</p>
+    </div>
+
+    <!-- System Statistics -->
+    <div class="card">
+      <div class="card-header">System Statistics</div>
+      <div class="grid grid-4">
+        <div class="stat-card">
+          <div class="stat-value" id="totalUsersCount">-</div>
+          <div class="stat-label">Total Users</div>
+        </div>
+        <div class="stat-card" style="border-color: var(--info)">
+          <div class="stat-value" id="totalProjectsCount">-</div>
+          <div class="stat-label">Total Projects</div>
+        </div>
+        <div class="stat-card" style="border-color: var(--warning)">
+          <div class="stat-value" id="totalTasksCount">-</div>
+          <div class="stat-label">Total Tasks</div>
+        </div>
+        <div class="stat-card" style="border-color: var(--success)">
+          <div class="stat-value" id="activeUsersCount">-</div>
+          <div class="stat-label">Active Users</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="card">
+      <div class="card-header">
+        <div class="tabs">
+          <button class="tab-btn active" onclick="switchTab('users')" data-i18n="admin.tabUsers">👥 User Management</button>
+          <button class="tab-btn" onclick="switchTab('departments')" data-i18n="admin.tabDepartments">🏢 Quản lý Phòng ban</button>
+          <button class="tab-btn" onclick="switchTab('positions')" data-i18n="admin.tabPositions">💼 Quản lý Chức vụ</button>
+        </div>
+      </div>
+
+      <!-- Users Tab -->
+      <div id="usersTab" class="tab-content active">
+        <div id="usersContainer">
+          <div class="flex-center" style="padding: 3rem;">
+            <div class="loading"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Departments Tab -->
+      <div id="departmentsTab" class="tab-content" style="display: none;">
+        <div class="flex-between mb-3">
+          <h3 data-i18n="admin.departments">Departments</h3>
+          <button class="btn btn-primary" onclick="openCreateDepartmentModal()" data-i18n="admin.addDepartment">+ Add Department</button>
+        </div>
+        <div id="departmentsContainer">
+          <div class="flex-center" style="padding: 3rem;">
+            <div class="loading"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Positions Tab -->
+      <div id="positionsTab" class="tab-content" style="display: none;">
+        <div class="flex-between mb-3">
+          <h3 data-i18n="admin.positions">Positions</h3>
+          <button class="btn btn-primary" onclick="openCreatePositionModal()" data-i18n="admin.addPosition">+ Add Position</button>
+        </div>
+        <div id="positionsContainer">
+          <div class="flex-center" style="padding: 3rem;">
+            <div class="loading"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/translations.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/utils.js"></script>
+  <script>
+    // Require admin authentication
+    Auth.requireAdmin();
+
+    // Ensure language switcher is initialized
+    if (typeof I18n !== 'undefined') {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+          I18n.initLanguageSwitcher();
+          I18n.updateLanguageSwitcher();
+        });
+      } else {
+        I18n.initLanguageSwitcher();
+        I18n.updateLanguageSwitcher();
+      }
+    }
+
+    // Display user info
+    const user = Auth.getCurrentUser();
+    document.getElementById('userName').textContent = user.fullName;
+    document.getElementById('userAvatar').textContent = Utils.getUserInitials(user.fullName);
+
+    let allUsers = [];
+
+    // Load admin data
+    async function loadAdminData() {
+      try {
+        const [usersData, systemStats] = await Promise.all([
+          api.getAllUsers(),
+          api.getSystemStatistics()
+        ]);
+
+        allUsers = usersData.data || usersData;
+        displaySystemStats(systemStats);
+        displayUsers(allUsers);
+      } catch (error) {
+        console.error('Failed to load admin data:', error);
+        Utils.showAlert('Failed to load admin data', 'danger');
+      }
+    }
+
+    function displaySystemStats(stats) {
+      document.getElementById('totalUsersCount').textContent = stats.totalUsers || 0;
+      document.getElementById('totalProjectsCount').textContent = stats.totalProjects || 0;
+      document.getElementById('totalTasksCount').textContent = stats.totalTasks || 0;
+      document.getElementById('activeUsersCount').textContent = stats.activeUsers || 0;
+    }
+
+    function displayUsers(users) {
+      const container = document.getElementById('usersContainer');
+      
+      if (users.length === 0) {
+        container.innerHTML = '<p class="text-center text-muted">No users found</p>';
+        return;
+      }
+
+      container.innerHTML = `
+        <table class="table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Department</th>
+              <th>Position</th>
+              <th>Created</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${users.map(u => `
+              <tr>
+                <td>
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="navbar-avatar" style="width: 32px; height: 32px; font-size: 0.875rem;">
+                      ${Utils.getUserInitials(u.fullName)}
+                    </div>
+                    <strong>${Utils.escapeHtml(u.fullName)}</strong>
+                  </div>
+                </td>
+                <td>${Utils.escapeHtml(u.email)}</td>
+                <td>
+                  <span class="badge ${u.role === 'Admin' ? 'badge-danger' : 'badge-secondary'}">
+                    ${u.role}
+                  </span>
+                </td>
+                <td>
+                  ${u.departmentName ? `<span class="badge badge-info">${Utils.escapeHtml(u.departmentName)}</span>` : '<span class="text-muted">-</span>'}
+                </td>
+                <td>
+                  ${u.positionName ? `<span class="badge badge-primary">${Utils.escapeHtml(u.positionName)}</span>` : '<span class="text-muted">-</span>'}
+                </td>
+                <td>${Utils.formatDate(u.createdAt)}</td>
+                <td>
+                  ${u.isActive !== false ? 
+                    '<span class="badge badge-success">Active</span>' :
+                    '<span class="badge badge-secondary">Inactive</span>'
+                  }
+                </td>
+                <td>
+                  ${u.userId !== user.userId ? `
+                    <button class="btn btn-sm btn-primary" onclick="openAssignDepartmentPositionModal(${u.userId}, '${Utils.escapeHtml(u.fullName)}', ${u.departmentId || 'null'}, ${u.positionId || 'null'})" title="Assign Department/Position">
+                      📋
+                    </button>
+                    <button class="btn btn-sm btn-warning" onclick="changeUserRole(${u.userId}, '${u.role}')">
+                      Change Role
+                    </button>
+                    ${u.isActive !== false ? `
+                      <button class="btn btn-sm btn-danger" onclick="deactivateUser(${u.userId})">
+                        Deactivate
+                      </button>
+                    ` : ''}
+                  ` : '<span class="text-muted">You</span>'}
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+      I18n.applyTranslations();
+    }
+
+    async function changeUserRole(userId, currentRole) {
+      const newRole = prompt(`Change role for user (current: ${currentRole})\nEnter new role: User, ProjectManager, or Admin`, currentRole);
+      
+      if (!newRole || newRole === currentRole) {
+        return;
+      }
+
+      if (!['User', 'ProjectManager', 'Admin'].includes(newRole)) {
+        Utils.showAlert('Invalid role. Must be: User, ProjectManager, or Admin', 'danger');
+        return;
+      }
+
+      try {
+        Utils.showLoading();
+        await api.updateUserRole(userId, newRole);
+        Utils.hideLoading();
+        Utils.showAlert('User role updated successfully!', 'success');
+        loadAdminData();
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || 'Failed to update user role', 'danger');
+      }
+    }
+
+    async function deactivateUser(userId) {
+      if (!await Utils.confirm('Are you sure you want to deactivate this user?')) {
+        return;
+      }
+
+      try {
+        Utils.showLoading();
+        await api.deactivateUser(userId);
+        Utils.hideLoading();
+        Utils.showAlert('User deactivated successfully!', 'success');
+        loadAdminData();
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || 'Failed to deactivate user', 'danger');
+      }
+    }
+
+    // Load data on page load
+    loadAdminData();
+  </script>
+</body>
+</html>
+

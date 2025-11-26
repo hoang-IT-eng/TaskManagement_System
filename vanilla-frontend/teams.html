@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teams - Task Management System</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .teams-master-detail {
+      display: grid;
+      grid-template-columns: 350px 1fr;
+      gap: 2rem;
+      margin-top: 2rem;
+      min-height: calc(100vh - 200px);
+    }
+
+    @media (max-width: 992px) {
+      .teams-master-detail {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Left Sidebar - Teams List */
+    .teams-sidebar {
+      background: white;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      padding: 1.5rem;
+      max-height: calc(100vh - 150px);
+      overflow-y: auto;
+      position: sticky;
+      top: 100px;
+    }
+
+    .teams-sidebar-header {
+      margin-bottom: 1.5rem;
+    }
+
+    .teams-sidebar-header h3 {
+      margin: 0 0 1rem 0;
+      font-size: 1.25rem;
+      color: var(--gray-900);
+    }
+
+    .btn-new-team {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .team-card-small {
+      padding: 1rem;
+      border: 2px solid var(--gray-200);
+      border-radius: var(--radius-md);
+      margin-bottom: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: white;
+    }
+
+    .team-card-small:hover {
+      border-color: var(--primary);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+    }
+
+    .team-card-small.active {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: white;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    .team-card-small.active h4 {
+      color: white;
+    }
+
+    .team-card-small.active .text-muted {
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .team-card-small h4 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--gray-900);
+    }
+
+    .team-card-small .text-muted {
+      font-size: 0.875rem;
+      margin: 0;
+      color: var(--gray-600);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Right Content - Team Details */
+    .team-detail-content {
+      background: white;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      padding: 2rem;
+    }
+
+    .team-detail-header {
+      border-bottom: 2px solid var(--gray-200);
+      padding-bottom: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .team-detail-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+
+    .team-detail-title h2 {
+      margin: 0;
+      font-size: 2rem;
+      color: var(--gray-900);
+    }
+
+    .team-detail-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .team-detail-description {
+      color: var(--gray-600);
+      font-size: 1rem;
+      margin: 0;
+    }
+
+    .team-detail-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .team-detail-toolbar h3 {
+      margin: 0;
+      font-size: 1.25rem;
+      color: var(--gray-900);
+    }
+
+    .toolbar-actions {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    /* Members Table */
+    .members-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .members-table thead {
+      background: var(--gray-50);
+    }
+
+    .members-table th {
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+      color: var(--gray-700);
+      border-bottom: 2px solid var(--gray-200);
+    }
+
+    .members-table td {
+      padding: 1rem;
+      border-bottom: 1px solid var(--gray-200);
+      vertical-align: middle;
+    }
+
+    .members-table tbody tr:hover {
+      background: var(--gray-50);
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 0.875rem;
+      flex-shrink: 0;
+    }
+
+    .user-details {
+      flex: 1;
+    }
+
+    .user-name {
+      font-weight: 600;
+      color: var(--gray-900);
+      margin-bottom: 0.25rem;
+    }
+
+    .user-email {
+      font-size: 0.875rem;
+      color: var(--gray-500);
+    }
+
+    .position-select {
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--gray-300);
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-width: 150px;
+    }
+
+    .position-select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    .position-option {
+      padding: 0.5rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--gray-500);
+    }
+
+    .empty-state-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+
+    .empty-state h3 {
+      color: var(--gray-700);
+      margin-bottom: 0.5rem;
+    }
+
+    .empty-state p {
+      color: var(--gray-500);
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-content">
+      <a href="dashboard.html" class="navbar-brand" data-i18n="nav.taskManage">📋 SmartWork</a>
+      <ul class="navbar-menu">
+        <li><a href="dashboard.html" data-i18n="nav.dashboard">Dashboard</a></li>
+        <li><a href="projects.html" data-i18n="nav.projects">Projects</a></li>
+        <li><a href="teams.html" data-i18n="nav.teams">Teams</a></li>
+        <li><a href="reports.html" data-i18n="nav.reports">Reports</a></li>
+        <li id="adminMenuItem" class="hidden"><a href="admin.html" data-i18n="nav.admin">Admin</a></li>
+      </ul>
+      <div class="navbar-user">
+        <div id="languageSwitcher"></div>
+        <div class="navbar-avatar" id="userAvatar"></div>
+        <span id="userName"></span>
+        <button class="btn btn-sm btn-secondary" onclick="Auth.logout()" data-i18n="common.logout">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="container" style="padding-top: 2rem; padding-bottom: 2rem;">
+    <div class="page-header flex-between">
+      <div>
+        <h1 class="page-title" data-i18n="teams.title">👥 Teams</h1>
+        <p class="page-subtitle" data-i18n="teams.subtitle">Manage your teams and members</p>
+      </div>
+    </div>
+
+    <div class="teams-master-detail">
+      <!-- Left Sidebar: Teams List -->
+      <div class="teams-sidebar">
+        <div class="teams-sidebar-header">
+          <h3>Teams</h3>
+          <button class="btn btn-primary btn-new-team" onclick="openCreateTeamModal()">
+            + New Team
+          </button>
+        </div>
+        <div id="teamsList">
+          <div class="flex-center" style="padding: 3rem;">
+            <div class="loading"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Content: Team Details -->
+      <div class="team-detail-content" id="teamDetailContent" style="display: none;">
+        <!-- Team Header -->
+        <div class="team-detail-header">
+          <div class="team-detail-title">
+      <div>
+              <h2 id="teamDetailName">Team Name</h2>
+              <p class="team-detail-description" id="teamDetailDescription">Team description</p>
+            </div>
+            <div class="team-detail-actions">
+              <button class="btn btn-sm btn-primary" onclick="openEditTeamModal()">
+                Edit Team
+              </button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCurrentTeam()">
+                Delete Team
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Linked Projects Section -->
+        <div id="linkedProjectsSection" style="margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 2px solid var(--gray-200);">
+          <div class="flex-between mb-2">
+            <h3>Linked Projects</h3>
+            <button class="btn btn-sm btn-primary" onclick="openAddProjectModal()">
+              + Link Project
+            </button>
+          </div>
+          <div id="linkedProjectsList" style="display: grid; gap: 0.75rem;">
+            <!-- Projects will be loaded here -->
+          </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="team-detail-toolbar">
+          <h3>Members</h3>
+          <div class="toolbar-actions">
+            <button class="btn btn-primary" onclick="openAddMemberModal()">
+              + Add Member
+            </button>
+            <button class="btn btn-secondary" onclick="openManagePositionsModal()">
+              ⚙️ Manage Positions
+            </button>
+          </div>
+        </div>
+
+        <!-- Members Table -->
+        <div id="membersTableContainer">
+          <table class="members-table">
+            <thead>
+              <tr>
+                <th>User Info</th>
+                <th>Position</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="membersTableBody">
+              <tr>
+                <td colspan="3" class="empty-state">
+                  <div class="empty-state-icon">👥</div>
+                  <h3>No members yet</h3>
+                  <p>Add members to this team to get started</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Empty State when no team selected -->
+      <div class="team-detail-content" id="teamDetailEmpty" style="display: flex; align-items: center; justify-content: center;">
+        <div class="empty-state">
+          <div class="empty-state-icon">👥</div>
+          <h3>Select a team</h3>
+          <p>Choose a team from the sidebar to view details and manage members</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/translations.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/utils.js"></script>
+  <script>
+    // Require authentication
+    Auth.requireAuth();
+
+    // Ensure language switcher is initialized
+    if (typeof I18n !== 'undefined') {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+          I18n.initLanguageSwitcher();
+          I18n.updateLanguageSwitcher();
+        });
+      } else {
+        I18n.initLanguageSwitcher();
+        I18n.updateLanguageSwitcher();
+      }
+    }
+
+    // Display user info
+    const user = Auth.getCurrentUser();
+    document.getElementById('userName').textContent = user.fullName;
+    document.getElementById('userAvatar').textContent = Utils.getUserInitials(user.fullName);
+
+    // Show admin menu if user is admin
+    if (Auth.isAdmin()) {
+      document.getElementById('adminMenuItem').classList.remove('hidden');
+    }
+
+    // Global state
+    let allTeams = [];
+    let selectedTeamId = null;
+    let currentTeam = null;
+    let allPositions = [];
+    let teamMembers = [];
+
+    // Load teams on page load
+    loadTeams();
+
+    // ==================== Teams List ====================
+
+    async function loadTeams() {
+      try {
+        // Only load teams that current user is a member of
+        const response = await api.getMyTeams();
+        allTeams = Array.isArray(response) ? response : (response.data || []);
+        displayTeamsList(allTeams);
+      } catch (error) {
+        console.error('Failed to load teams:', error);
+        document.getElementById('teamsList').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">⚠️</div>
+            <h3>Failed to load teams</h3>
+            <p>${error.message || 'Unknown error'}</p>
+          </div>
+        `;
+      }
+    }
+
+    function displayTeamsList(teams) {
+      const container = document.getElementById('teamsList');
+      
+      if (teams.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">👥</div>
+            <h3>No teams yet</h3>
+            <p>Create your first team to get started</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = teams.map(team => `
+        <div class="team-card-small" onclick="selectTeam(${team.teamId})" data-team-id="${team.teamId}">
+          <h4>${Utils.escapeHtml(team.name)}</h4>
+          <p class="text-muted">${team.description ? Utils.escapeHtml(team.description) : 'No description'}</p>
+        </div>
+      `).join('');
+    }
+
+    async function selectTeam(teamId) {
+      selectedTeamId = teamId;
+      
+      // Update active state
+      document.querySelectorAll('.team-card-small').forEach(card => {
+        card.classList.remove('active');
+      });
+      document.querySelector(`[data-team-id="${teamId}"]`)?.classList.add('active');
+
+      // Show detail content, hide empty state
+      document.getElementById('teamDetailContent').style.display = 'block';
+      document.getElementById('teamDetailEmpty').style.display = 'none';
+
+      // Load team details
+      await loadTeamDetails(teamId);
+    }
+
+    // ==================== Team Details ====================
+
+    async function loadTeamDetails(teamId) {
+      try {
+        Utils.showLoading();
+        
+        // Load team info, members, and positions in parallel
+        const [teamResponse, membersResponse, positionsResponse] = await Promise.all([
+          api.getTeamById(teamId),
+          api.getTeamMembers(teamId).catch((err) => {
+            console.warn('Failed to load team members:', err);
+            return { data: [] }; // Return empty array structure
+          }),
+          api.getPositions().catch((err) => {
+            console.warn('Failed to load positions:', err);
+            return { data: [] }; // Return empty array structure
+          })
+        ]);
+
+        currentTeam = teamResponse.data || teamResponse;
+        teamMembers = Array.isArray(membersResponse) ? membersResponse : (membersResponse.data || []);
+        allPositions = Array.isArray(positionsResponse) ? positionsResponse : (positionsResponse.data || []);
+
+        console.log('Loaded team details:', {
+          team: currentTeam,
+          membersCount: teamMembers.length,
+          members: teamMembers,
+          positionsCount: allPositions.length
+        });
+
+        displayTeamDetails(currentTeam);
+        displayMembers(teamMembers);
+        
+        Utils.hideLoading();
+      } catch (error) {
+        console.error('Failed to load team details:', error);
+        Utils.hideLoading();
+        Utils.showAlert('Failed to load team details: ' + (error.message || 'Unknown error'), 'danger');
+      }
+    }
+
+    function displayTeamDetails(team) {
+      document.getElementById('teamDetailName').textContent = team.name;
+      document.getElementById('teamDetailDescription').textContent = team.description || 'No description';
+      
+      // Display linked projects
+      displayLinkedProjects(team.linkedProjects || []);
+    }
+
+    function displayLinkedProjects(projects) {
+      const container = document.getElementById('linkedProjectsList');
+      
+      if (!projects || projects.length === 0) {
+        container.innerHTML = `
+          <div class="text-center text-muted" style="padding: 2rem;">
+            <p>No linked projects yet. Link a project to get started.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = projects.map(project => `
+        <div class="linked-project-card" style="
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          padding: 1rem;
+          border: 1px solid var(--gray-200);
+          border-radius: var(--radius-md);
+          background: var(--gray-50);
+          transition: all 0.2s;
+        ">
+          <div class="project-icon" style="
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-md);
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1rem;
+            flex-shrink: 0;
+          ">
+            ${Utils.getProjectInitials(project.projectName || project.ProjectName)}
+          </div>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 600; color: var(--gray-900); margin-bottom: 0.25rem;">
+              ${Utils.escapeHtml(project.projectName || project.ProjectName)}
+            </div>
+            <div style="font-size: 0.875rem; color: var(--gray-500);">
+              Key: ${Utils.escapeHtml(project.projectKey || project.ProjectKey || 'N/A')}
+            </div>
+          </div>
+          <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
+            <a href="project-detail.html?id=${project.projectId || project.ProjectId}" 
+               class="btn btn-sm btn-primary" 
+               style="text-decoration: none;">
+              View Project
+            </a>
+            <button class="btn btn-sm btn-danger" 
+                    onclick="removeProjectFromTeam(${project.projectId || project.ProjectId})"
+                    title="Unlink Project">
+              ×
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      // Add hover effect
+      container.querySelectorAll('.linked-project-card').forEach(card => {
+        card.addEventListener('mouseenter', () => {
+          card.style.background = 'white';
+          card.style.borderColor = 'var(--primary)';
+          card.style.boxShadow = 'var(--shadow-md)';
+        });
+        card.addEventListener('mouseleave', () => {
+          card.style.background = 'var(--gray-50)';
+          card.style.borderColor = 'var(--gray-200)';
+          card.style.boxShadow = 'none';
+        });
+      });
+    }
+
+    function displayMembers(members) {
+      const tbody = document.getElementById('membersTableBody');
+      
+      if (!members || members.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="3" class="empty-state">
+              <div class="empty-state-icon">👥</div>
+              <h3>No members yet</h3>
+              <p>Add members to this team to get started</p>
+            </td>
+          </tr>
+        `;
+          return;
+        }
+
+      tbody.innerHTML = members.map(member => {
+        const user = member.user || member;
+        const userName = user.fullName || user.FullName || 'Unknown';
+        const userEmail = user.email || user.Email || '';
+        const userId = user.userId || user.UserId || member.userId || member.UserId;
+        // Get positionId from user.position or member.positionId
+        const position = user.position || member.position || null;
+        const positionId = position ? (position.positionId || position.PositionId) : (member.positionId || member.PositionId || user.positionId || user.PositionId || null);
+
+        return `
+          <tr>
+            <td>
+              <div class="user-info">
+                <div class="user-avatar">
+                  ${Utils.getUserInitials(userName)}
+                </div>
+                <div class="user-details">
+                  <div class="user-name">${Utils.escapeHtml(userName)}</div>
+                  <div class="user-email">${Utils.escapeHtml(userEmail)}</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <select class="position-select" 
+                      data-user-id="${userId}"
+                      onchange="updateMemberPosition(${selectedTeamId}, ${userId}, this.value)">
+                <option value="">No Position</option>
+                ${allPositions.map(pos => `
+                  <option value="${pos.positionId || pos.PositionId}" 
+                          ${(pos.positionId || pos.PositionId) == positionId ? 'selected' : ''}
+                          style="background-color: ${getPositionColor(pos)};">
+                    ${Utils.escapeHtml(pos.name || pos.Name)} (${Utils.escapeHtml(pos.code || pos.Code)})
+                  </option>
+                `).join('')}
+              </select>
+            </td>
+            <td>
+              <button class="btn btn-sm btn-danger" onclick="removeMember(${selectedTeamId}, ${userId})">
+                Remove
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function getPositionColor(position) {
+      // Generate color based on position code or name
+      const code = (position.code || position.Code || '').toUpperCase();
+      const colors = {
+        'DEV': '#e3f2fd',
+        'QA': '#f3e5f5',
+        'BA': '#e8f5e9',
+        'PM': '#fff3e0',
+        'LEAD': '#fce4ec',
+        'MANAGER': '#e0f2f1',
+        'ADMIN': '#f1f8e9'
+      };
+      return colors[code] || '#f5f5f5';
+    }
+
+    // ==================== Create Team ====================
+
+    async function openCreateTeamModal() {
+      try {
+        Utils.showLoading();
+        const usersResponse = await api.getAvailableLeaders();
+        const users = Array.isArray(usersResponse) ? usersResponse : (usersResponse.data || []);
+        Utils.hideLoading();
+
+        const modalHTML = `
+          <form id="createTeamForm">
+            <div class="form-group">
+              <label class="form-label">Team Name *</label>
+              <input type="text" id="teamName" class="form-input" required>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Description</label>
+              <textarea id="teamDescription" class="form-textarea" rows="3"></textarea>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Team Leader *</label>
+              <select id="teamLeaderId" class="form-select" required>
+                <option value="">-- Select a leader --</option>
+                ${users.filter(u => u.isActive !== false).map(user => `
+                  <option value="${user.userId || user.UserId}">
+                    ${Utils.escapeHtml(user.fullName || user.FullName)} (${Utils.escapeHtml(user.email || user.Email)})
+                  </option>
+                `).join('')}
+              </select>
+            </div>
+          </form>
+        `;
+
+        Utils.createModal('Create New Team', modalHTML, async () => {
+          const form = document.getElementById('createTeamForm');
+          if (!form.checkValidity()) {
+            form.reportValidity();
+            throw new Error('Validation failed');
+          }
+
+          const data = {
+            name: document.getElementById('teamName').value.trim(),
+            description: document.getElementById('teamDescription').value.trim() || null,
+            leaderId: parseInt(document.getElementById('teamLeaderId').value)
+          };
+
+          try {
+            Utils.showLoading();
+            await api.createTeam(data);
+            Utils.hideLoading();
+            Utils.showAlert('Team created successfully!', 'success');
+            await loadTeams();
+          } catch (error) {
+            Utils.hideLoading();
+            Utils.showAlert(error.message || 'Failed to create team', 'danger');
+            throw error;
+          }
+        });
+      } catch (error) {
+        Utils.hideLoading();
+        console.error('Failed to open create team modal:', error);
+        Utils.showAlert('Failed to load users', 'danger');
+      }
+    }
+
+    // ==================== Edit Team ====================
+
+    async function openEditTeamModal() {
+      if (!selectedTeamId || !currentTeam) {
+        Utils.showAlert('Please select a team first', 'warning');
+        return;
+      }
+
+      try {
+        Utils.showLoading();
+        const usersResponse = await api.getAvailableLeaders();
+        const users = Array.isArray(usersResponse) ? usersResponse : (usersResponse.data || []);
+        Utils.hideLoading();
+
+        const modalHTML = `
+          <form id="editTeamForm">
+            <div class="form-group">
+              <label class="form-label">Team Name *</label>
+              <input type="text" id="editTeamName" class="form-input" value="${Utils.escapeHtml(currentTeam.name)}" required>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Description</label>
+              <textarea id="editTeamDescription" class="form-textarea" rows="3">${Utils.escapeHtml(currentTeam.description || '')}</textarea>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Team Leader *</label>
+              <select id="editTeamLeaderId" class="form-select" required>
+                <option value="">-- Select a leader --</option>
+                ${users.filter(u => u.isActive !== false).map(user => `
+                  <option value="${user.userId || user.UserId}" ${(user.userId || user.UserId) == currentTeam.leaderId ? 'selected' : ''}>
+                    ${Utils.escapeHtml(user.fullName || user.FullName)} (${Utils.escapeHtml(user.email || user.Email)})
+                  </option>
+                `).join('')}
+              </select>
+            </div>
+          </form>
+        `;
+
+        Utils.createModal('Edit Team', modalHTML, async () => {
+          const form = document.getElementById('editTeamForm');
+          if (!form.checkValidity()) {
+            form.reportValidity();
+            throw new Error('Validation failed');
+          }
+
+          const data = {
+            name: document.getElementById('editTeamName').value.trim(),
+            description: document.getElementById('editTeamDescription').value.trim() || null,
+            leaderId: parseInt(document.getElementById('editTeamLeaderId').value)
+          };
+
+          try {
+            Utils.showLoading();
+            await api.updateTeam(selectedTeamId, data);
+            Utils.hideLoading();
+            Utils.showAlert('Team updated successfully!', 'success');
+            await loadTeamDetails(selectedTeamId);
+            await loadTeams();
+          } catch (error) {
+            Utils.hideLoading();
+            Utils.showAlert(error.message || 'Failed to update team', 'danger');
+            throw error;
+          }
+        });
+      } catch (error) {
+        Utils.hideLoading();
+        console.error('Failed to open edit team modal:', error);
+        Utils.showAlert('Failed to load users', 'danger');
+      }
+    }
+
+    // ==================== Delete Team ====================
+
+    async function deleteCurrentTeam() {
+      if (!selectedTeamId) {
+        Utils.showAlert('Please select a team first', 'warning');
+        return;
+      }
+
+      if (!await Utils.confirm('Are you sure you want to delete this team? This action cannot be undone.')) {
+        return;
+      }
+
+      try {
+        Utils.showLoading();
+        await api.deleteTeam(selectedTeamId);
+        Utils.hideLoading();
+        Utils.showAlert('Team deleted successfully!', 'success');
+        
+        // Reset selection
+        selectedTeamId = null;
+        currentTeam = null;
+        document.getElementById('teamDetailContent').style.display = 'none';
+        document.getElementById('teamDetailEmpty').style.display = 'flex';
+        
+        await loadTeams();
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || 'Failed to delete team', 'danger');
+      }
+    }
+
+    // ==================== Add Member ====================
+
+    async function openAddMemberModal() {
+      if (!selectedTeamId) {
+        Utils.showAlert('Please select a team first', 'warning');
+        return;
+      }
+
+      try {
+        Utils.showLoading();
+        const [usersResponse, positionsResponse] = await Promise.all([
+          api.getAvailableUsersForTeam(selectedTeamId).catch(() => api.getAllUsers(1, 1000).then(r => Array.isArray(r) ? r : (r.data || []))),
+          api.getPositions().catch(() => [])
+        ]);
+        Utils.hideLoading();
+
+        const availableUsers = Array.isArray(usersResponse) ? usersResponse : (usersResponse.data || []);
+        const positions = Array.isArray(positionsResponse) ? positionsResponse : (positionsResponse.data || []);
+
+        // Backend đã xử lý logic filter, không cần filter thêm ở frontend
+        if (!availableUsers || availableUsers.length === 0) {
+          Utils.showAlert('No available users to add. All users are already members of this team.', 'info');
+          return;
+        }
+
+        const modalHTML = `
+          <form id="addMemberForm">
+            <div class="form-group">
+              <label class="form-label">Select User *</label>
+              <select id="memberUserId" class="form-select" required>
+                <option value="">-- Choose a user --</option>
+                ${availableUsers.map(user => `
+                  <option value="${user.userId || user.UserId}">
+                    ${Utils.escapeHtml(user.fullName || user.FullName)} (${Utils.escapeHtml(user.email || user.Email)})
+                  </option>
+                `).join('')}
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Position</label>
+              <select id="memberPositionId" class="form-select">
+                <option value="">No Position</option>
+                ${positions.map(pos => `
+                  <option value="${pos.positionId || pos.PositionId}">
+                    ${Utils.escapeHtml(pos.name || pos.Name)} (${Utils.escapeHtml(pos.code || pos.Code)})
+                  </option>
+                `).join('')}
+              </select>
+            </div>
+          </form>
+        `;
+
+        Utils.createModal('Add Member to Team', modalHTML, async () => {
+          const form = document.getElementById('addMemberForm');
+          if (!form.checkValidity()) {
+            form.reportValidity();
+            throw new Error('Validation failed');
+          }
+
+          const userId = parseInt(document.getElementById('memberUserId').value);
+          const positionId = document.getElementById('memberPositionId').value ? parseInt(document.getElementById('memberPositionId').value) : null;
+
+          try {
+            Utils.showLoading();
+            await api.addTeamMember(selectedTeamId, userId, positionId);
+            Utils.hideLoading();
+            Utils.showAlert('Member added successfully!', 'success');
+            await loadTeamDetails(selectedTeamId);
+          } catch (error) {
+            Utils.hideLoading();
+            Utils.showAlert(error.message || 'Failed to add member', 'danger');
+            throw error;
+          }
+        });
+      } catch (error) {
+        Utils.hideLoading();
+        console.error('Failed to open add member modal:', error);
+        Utils.showAlert('Failed to load users', 'danger');
+      }
+    }
+
+    // ==================== Update Member Position ====================
+
+    async function updateMemberPosition(teamId, userId, positionId) {
+      try {
+        const posId = positionId ? parseInt(positionId) : null;
+        await api.updateTeamMemberPosition(teamId, userId, posId);
+        Utils.showAlert('Position updated successfully!', 'success');
+        // Optionally reload to get updated data
+        await loadTeamDetails(teamId);
+      } catch (error) {
+        console.error('Failed to update member position:', error);
+        Utils.showAlert(error.message || 'Failed to update position', 'danger');
+        // Reload to reset the select
+        await loadTeamDetails(teamId);
+      }
+    }
+
+    // ==================== Remove Member ====================
+
+    async function removeMember(teamId, userId) {
+      if (!await Utils.confirm('Are you sure you want to remove this member from the team?')) {
+        return;
+      }
+
+      try {
+        Utils.showLoading();
+        await api.removeTeamMember(teamId, userId);
+        Utils.hideLoading();
+        Utils.showAlert('Member removed successfully!', 'success');
+        await loadTeamDetails(teamId);
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || 'Failed to remove member', 'danger');
+      }
+    }
+
+    // ==================== Linked Projects ====================
+
+    async function openAddProjectModal() {
+      if (!selectedTeamId) {
+        Utils.showAlert('Please select a team first', 'warning');
+        return;
+      }
+
+      try {
+        Utils.showLoading();
+        const projectsResponse = await api.getProjects();
+        Utils.hideLoading();
+
+        const allProjects = Array.isArray(projectsResponse) ? projectsResponse : (projectsResponse.data || []);
+        
+        // Get current team to check which projects are already linked
+        const teamResponse = await api.getTeamById(selectedTeamId);
+        const team = teamResponse.data || teamResponse;
+        const linkedProjectIds = (team.linkedProjects || []).map(p => p.projectId || p.ProjectId);
+
+        // Filter out already linked projects
+        const availableProjects = allProjects.filter(p => !linkedProjectIds.includes(p.projectId || p.ProjectId));
+
+        if (availableProjects.length === 0) {
+          Utils.showAlert('All projects are already linked to this team', 'info');
+          return;
+        }
+
+        const modalHTML = `
+          <form id="addProjectForm">
+            <div class="form-group">
+              <label class="form-label">Select Project *</label>
+              <select id="projectSelect" class="form-select" required>
+                <option value="">-- Choose a project --</option>
+                ${availableProjects.map(project => `
+                  <option value="${project.projectId || project.ProjectId}">
+                    ${Utils.escapeHtml(project.name || project.Name)}
+                  </option>
+                `).join('')}
+              </select>
+            </div>
+          </form>
+        `;
+
+        Utils.createModal('Link Project to Team', modalHTML, async () => {
+          const form = document.getElementById('addProjectForm');
+          if (!form.checkValidity()) {
+            form.reportValidity();
+            throw new Error('Validation failed');
+          }
+
+          const projectId = parseInt(document.getElementById('projectSelect').value);
+          if (!projectId) {
+            Utils.showAlert('Please select a project', 'warning');
+            throw new Error('Validation failed');
+          }
+
+          try {
+            Utils.showLoading();
+            await api.addProjectToTeam(selectedTeamId, projectId);
+            Utils.hideLoading();
+            Utils.showAlert('Project linked to team successfully!', 'success');
+            await loadTeamDetails(selectedTeamId);
+          } catch (error) {
+            Utils.hideLoading();
+            Utils.showAlert(error.message || 'Failed to link project to team', 'danger');
+            throw error;
+          }
+        });
+      } catch (error) {
+        Utils.hideLoading();
+        console.error('Failed to open add project modal:', error);
+        Utils.showAlert('Failed to load projects', 'danger');
+      }
+    }
+
+    async function removeProjectFromTeam(projectId) {
+      if (!selectedTeamId) {
+        Utils.showAlert('Please select a team first', 'warning');
+        return;
+      }
+
+      if (!await Utils.confirm('Are you sure you want to unlink this project from the team?')) {
+        return;
+      }
+
+      try {
+        Utils.showLoading();
+        await api.removeProjectFromTeam(selectedTeamId, projectId);
+        Utils.hideLoading();
+        Utils.showAlert('Project unlinked from team successfully!', 'success');
+        await loadTeamDetails(selectedTeamId);
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || 'Failed to unlink project from team', 'danger');
+      }
+    }
+
+    // ==================== Manage Positions ====================
+
+    async function openManagePositionsModal() {
+      try {
+        Utils.showLoading();
+        const positionsResponse = await api.getPositions();
+        Utils.hideLoading();
+
+        const positions = Array.isArray(positionsResponse) ? positionsResponse : (positionsResponse.data || []);
+
+        const modalHTML = `
+          <div style="max-height: 60vh; overflow-y: auto;">
+            <div class="flex-between mb-3">
+              <h4>Positions</h4>
+              <button type="button" class="btn btn-sm btn-primary" onclick="openCreatePositionModal()">
+                + Add Position
+              </button>
+            </div>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Code</th>
+                  <th>Workflow Group</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${positions.length === 0 ? `
+                  <tr>
+                    <td colspan="4" class="text-center text-muted">No positions yet</td>
+                  </tr>
+                ` : positions.map(pos => `
+                  <tr>
+                    <td>${Utils.escapeHtml(pos.name || pos.Name)}</td>
+                    <td><span class="badge badge-primary">${Utils.escapeHtml(pos.code || pos.Code)}</span></td>
+                    <td>${Utils.escapeHtml(pos.workflowGroup || pos.WorkflowGroup || 'N/A')}</td>
+                    <td>
+                      <button class="btn btn-sm btn-primary" onclick="openEditPositionModal(${pos.positionId || pos.PositionId})">
+                        Edit
+                      </button>
+                      <button class="btn btn-sm btn-danger" onclick="deletePosition(${pos.positionId || pos.PositionId})">
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+
+        // Create modal without footer buttons
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.innerHTML = `
+          <div class="modal">
+            <div class="modal-header">Manage Positions</div>
+            <div class="modal-body">${modalHTML}</div>
+          </div>
+        `;
+        document.body.appendChild(overlay);
+        
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) {
+            overlay.remove();
+          }
+        });
+      } catch (error) {
+        Utils.hideLoading();
+        console.error('Failed to open manage positions modal:', error);
+        Utils.showAlert('Failed to load positions', 'danger');
+      }
+    }
+
+    async function openCreatePositionModal() {
+      const modalHTML = `
+        <form id="createPositionForm">
+          <div class="form-group">
+            <label class="form-label">Position Name *</label>
+            <input type="text" id="positionName" class="form-input" required>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Code *</label>
+            <input type="text" id="positionCode" class="form-input" required placeholder="e.g., DEV, QA, BA">
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Workflow Group</label>
+            <select id="positionWorkflowGroup" class="form-select">
+              <option value="Implementer">Implementer</option>
+              <option value="Tester">Tester</option>
+              <option value="Manager">Manager</option>
+              <option value="Admin">Admin</option>
+            </select>
+          </div>
+        </form>
+      `;
+
+      Utils.createModal('Create Position', modalHTML, async () => {
+        const form = document.getElementById('createPositionForm');
+        if (!form.checkValidity()) {
+          form.reportValidity();
+          throw new Error('Validation failed');
+        }
+
+        const data = {
+          name: document.getElementById('positionName').value.trim(),
+          code: document.getElementById('positionCode').value.trim().toUpperCase(),
+          workflowGroup: document.getElementById('positionWorkflowGroup').value
+        };
+
+        try {
+          Utils.showLoading();
+          await api.createPosition(data);
+          Utils.hideLoading();
+          Utils.showAlert('Position created successfully!', 'success');
+          // Reload positions and refresh member dropdowns
+          await loadTeamDetails(selectedTeamId);
+          // Close modal and reopen manage positions
+          document.querySelector('.modal-overlay')?.remove();
+          await openManagePositionsModal();
+        } catch (error) {
+          Utils.hideLoading();
+          Utils.showAlert(error.message || 'Failed to create position', 'danger');
+          throw error;
+        }
+      });
+    }
+
+    async function openEditPositionModal(positionId) {
+      try {
+        Utils.showLoading();
+        const positionResponse = await api.getPosition(positionId);
+        Utils.hideLoading();
+
+        const position = positionResponse.data || positionResponse;
+
+        const modalHTML = `
+          <form id="editPositionForm">
+            <div class="form-group">
+              <label class="form-label">Position Name *</label>
+              <input type="text" id="editPositionName" class="form-input" value="${Utils.escapeHtml(position.name || position.Name)}" required>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Code *</label>
+              <input type="text" id="editPositionCode" class="form-input" value="${Utils.escapeHtml(position.code || position.Code)}" required>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Workflow Group</label>
+              <select id="editPositionWorkflowGroup" class="form-select">
+                <option value="Implementer" ${(position.workflowGroup || position.WorkflowGroup) === 'Implementer' ? 'selected' : ''}>Implementer</option>
+                <option value="Tester" ${(position.workflowGroup || position.WorkflowGroup) === 'Tester' ? 'selected' : ''}>Tester</option>
+                <option value="Manager" ${(position.workflowGroup || position.WorkflowGroup) === 'Manager' ? 'selected' : ''}>Manager</option>
+                <option value="Admin" ${(position.workflowGroup || position.WorkflowGroup) === 'Admin' ? 'selected' : ''}>Admin</option>
+              </select>
+            </div>
+          </form>
+        `;
+
+        Utils.createModal('Edit Position', modalHTML, async () => {
+          const form = document.getElementById('editPositionForm');
+          if (!form.checkValidity()) {
+            form.reportValidity();
+            throw new Error('Validation failed');
+          }
+
+          const data = {
+            name: document.getElementById('editPositionName').value.trim(),
+            code: document.getElementById('editPositionCode').value.trim().toUpperCase(),
+            workflowGroup: document.getElementById('editPositionWorkflowGroup').value
+          };
+
+          try {
+            Utils.showLoading();
+            await api.updatePosition(positionId, data);
+            Utils.hideLoading();
+            Utils.showAlert('Position updated successfully!', 'success');
+            // Reload positions and refresh member dropdowns
+            await loadTeamDetails(selectedTeamId);
+            // Close modal and reopen manage positions
+            document.querySelector('.modal-overlay')?.remove();
+            await openManagePositionsModal();
+          } catch (error) {
+            Utils.hideLoading();
+            Utils.showAlert(error.message || 'Failed to update position', 'danger');
+            throw error;
+          }
+        });
+      } catch (error) {
+        Utils.hideLoading();
+        console.error('Failed to open edit position modal:', error);
+        Utils.showAlert('Failed to load position', 'danger');
+      }
+    }
+
+    async function deletePosition(positionId) {
+      if (!await Utils.confirm('Are you sure you want to delete this position?')) {
+        return;
+      }
+
+      try {
+        Utils.showLoading();
+        await api.deletePosition(positionId);
+        Utils.hideLoading();
+        Utils.showAlert('Position deleted successfully!', 'success');
+        // Reload positions and refresh member dropdowns
+        await loadTeamDetails(selectedTeamId);
+        // Close modal and reopen manage positions
+        document.querySelector('.modal-overlay')?.remove();
+        await openManagePositionsModal();
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || 'Failed to delete position', 'danger');
+      }
+    }
+  </script>
+</body>
+</html>

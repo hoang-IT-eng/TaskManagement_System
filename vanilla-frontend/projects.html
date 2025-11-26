@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Projects - Task Management System</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-content">
+      <a href="dashboard.html" class="navbar-brand" data-i18n="nav.taskManage">📋 SmartWork</a>
+      <ul class="navbar-menu">
+        <li><a href="dashboard.html" data-i18n="nav.dashboard">Dashboard</a></li>
+        <li><a href="projects.html" data-i18n="nav.projects">Projects</a></li>
+        <li><a href="teams.html" data-i18n="nav.teams">Teams</a></li>
+        <li><a href="reports.html" data-i18n="nav.reports">Reports</a></li>
+        <li id="adminMenuItem" class="hidden"><a href="admin.html" data-i18n="nav.admin">Admin</a></li>
+      </ul>
+      <div class="navbar-user">
+        <div id="languageSwitcher"></div>
+        <div class="navbar-avatar" id="userAvatar"></div>
+        <span id="userName"></span>
+        <button class="btn btn-sm btn-secondary" onclick="Auth.logout()" data-i18n="common.logout">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="container" style="padding-top: 2rem; padding-bottom: 2rem;">
+    <div class="page-header flex-between">
+      <div>
+        <h1 class="page-title" data-i18n="projects.title">📂 All Projects</h1>
+        <p class="page-subtitle" data-i18n="projects.subtitle">Manage your projects</p>
+      </div>
+      <button class="btn btn-primary btn-lg" onclick="openCreateModal()" data-i18n="projects.newProject">+ New Project</button>
+    </div>
+
+    <!-- Projects Grid -->
+    <div id="projectsContainer">
+      <div class="flex-center" style="padding: 5rem;">
+        <div class="loading"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/translations.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/utils.js"></script>
+  <script>
+    // Require authentication
+    Auth.requireAuth();
+
+    // Ensure language switcher is initialized
+    if (typeof I18n !== 'undefined') {
+      // Wait for DOM to be fully ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+          I18n.initLanguageSwitcher();
+          I18n.updateLanguageSwitcher();
+        });
+      } else {
+        I18n.initLanguageSwitcher();
+        I18n.updateLanguageSwitcher();
+      }
+    }
+
+    // Display user info
+    const user = Auth.getCurrentUser();
+    document.getElementById('userName').textContent = user.fullName;
+    document.getElementById('userAvatar').textContent = Utils.getUserInitials(user.fullName);
+
+    // Show admin menu if user is admin
+    if (Auth.isAdmin()) {
+      document.getElementById('adminMenuItem').classList.remove('hidden');
+    }
+
+    // Load all projects
+    async function loadProjects() {
+      try {
+        const projects = await api.getProjects();
+        displayProjects(projects);
+      } catch (error) {
+        console.error('Failed to load projects:', error);
+        Utils.showAlert(I18n.t('projects.failedToLoad'), 'danger');
+      }
+    }
+
+    function displayProjects(projects) {
+      const container = document.getElementById('projectsContainer');
+      
+      if (projects.length === 0) {
+        container.innerHTML = `
+          <div class="card text-center" style="padding: 5rem;">
+            <div style="font-size: 4rem; margin-bottom: 1rem;">📁</div>
+            <h3 data-i18n="projects.noProjectsYet">No projects yet</h3>
+            <p class="text-muted" data-i18n="projects.createFirstProject">Create your first project to get started</p>
+            <button class="btn btn-primary mt-2" onclick="openCreateModal()" data-i18n="projects.createProject">+ Create Project</button>
+          </div>
+        `;
+        I18n.applyTranslations();
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="grid grid-3">
+          ${projects.map(project => `
+            <div class="card" style="border-left: 4px solid var(--primary); position: relative;">
+              <div style="cursor: pointer;" onclick="window.location.href='project-detail.html?id=${project.projectId}'">
+                <div class="flex-between mb-2">
+                  <h3 style="margin: 0;">${Utils.escapeHtml(project.name)}</h3>
+                  <span class="badge ${Utils.getStatusBadgeClass(project.status)}">${I18n.translateStatus(project.status)}</span>
+                </div>
+                
+                <p class="text-muted" style="margin-bottom: 1rem; min-height: 3rem;">
+                  ${project.description ? Utils.escapeHtml(project.description) : I18n.t('projects.noDescription')}
+                </p>
+                
+                <div style="margin-top: auto;">
+                  <div class="flex-between" style="font-size: 0.875rem; margin-bottom: 0.5rem;">
+                    <span>👤 ${Utils.escapeHtml(project.ownerName)}</span>
+                    <span class="badge ${Utils.getPriorityBadgeClass(project.priority)}">${I18n.translatePriority(project.priority)}</span>
+                  </div>
+                  
+                  ${project.budget ? `
+                    <div style="font-size: 0.875rem; color: var(--gray-600);">
+                      💰 Budget: $${Utils.formatNumber(project.budget)}
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+              
+              <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--gray-200); display: flex; gap: 0.5rem;">
+                <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); openEditModal(${project.projectId})" style="flex: 1;" data-i18n="common.edit">
+                  ✏️ Edit
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteProject(${project.projectId})" style="flex: 1;" data-i18n="common.delete">
+                  🗑️ Delete
+                </button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    // Open create project modal
+    function openCreateModal() {
+      const modalHTML = `
+        <form id="createProjectForm">
+          <div class="form-group">
+            <label class="form-label" data-i18n="projects.projectName">Project Name *</label>
+            <input type="text" id="projectName" class="form-input" required>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label" data-i18n="projects.description">Description</label>
+            <textarea id="projectDescription" class="form-textarea" rows="3"></textarea>
+          </div>
+          
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label class="form-label" data-i18n="projects.status">Status</label>
+              <select id="projectStatus" class="form-select">
+                <option value="Planning" data-i18n="projects.planning">Planning</option>
+                <option value="InProgress" data-i18n="projects.inProgress">In Progress</option>
+                <option value="Completed" data-i18n="projects.completed">Completed</option>
+                <option value="OnHold" data-i18n="projects.onHold">On Hold</option>
+                <option value="Cancelled" data-i18n="projects.cancelled">Cancelled</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label" data-i18n="projects.priority">Priority</label>
+              <select id="projectPriority" class="form-select">
+                <option value="Low" data-i18n="projects.low">Low</option>
+                <option value="Medium" selected data-i18n="projects.medium">Medium</option>
+                <option value="High" data-i18n="projects.high">High</option>
+                <option value="Critical" data-i18n="projects.critical">Critical</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label class="form-label" data-i18n="projects.startDate">Start Date</label>
+              <input type="date" id="projectStartDate" class="form-input">
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label" data-i18n="projects.endDate">End Date</label>
+              <input type="date" id="projectEndDate" class="form-input">
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label" data-i18n="projects.budget">Budget</label>
+            <input type="number" id="projectBudget" class="form-input" placeholder="0.00">
+          </div>
+        </form>
+      `;
+
+      const modal = Utils.createModal(I18n.t('projects.createNewProject'), modalHTML, async () => {
+        await createProject();
+      });
+      I18n.applyTranslations();
+    }
+
+    async function createProject() {
+      const form = document.getElementById('createProjectForm');
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+
+      const data = {
+        name: document.getElementById('projectName').value,
+        description: document.getElementById('projectDescription').value || '',
+        status: document.getElementById('projectStatus').value,
+        priority: document.getElementById('projectPriority').value,
+        startDate: document.getElementById('projectStartDate').value || null,
+        endDate: document.getElementById('projectEndDate').value || null,
+        budget: document.getElementById('projectBudget').value ? parseFloat(document.getElementById('projectBudget').value) : null
+      };
+
+      try {
+        Utils.showLoading();
+        await api.createProject(data);
+        Utils.hideLoading();
+        Utils.showAlert(I18n.t('projects.projectCreated'), 'success');
+        loadProjects();
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || I18n.t('projects.failedToCreate'), 'danger');
+        throw error; // Re-throw to prevent modal from closing
+      }
+    }
+
+    // Open edit project modal
+    async function openEditModal(projectId) {
+      try {
+        Utils.showLoading();
+        const project = await api.getProject(projectId);
+        Utils.hideLoading();
+
+        const modalHTML = `
+          <form id="editProjectForm">
+            <div class="form-group">
+              <label class="form-label" data-i18n="projects.projectName">Project Name *</label>
+              <input type="text" id="editProjectName" class="form-input" value="${Utils.escapeHtml(project.name)}" required>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label" data-i18n="projects.description">Description</label>
+              <textarea id="editProjectDescription" class="form-textarea" rows="3">${project.description || ''}</textarea>
+            </div>
+            
+            <div class="grid grid-2">
+              <div class="form-group">
+                <label class="form-label" data-i18n="projects.status">Status</label>
+                <select id="editProjectStatus" class="form-select">
+                  <option value="Planning" ${project.status === 'Planning' ? 'selected' : ''} data-i18n="projects.planning">Planning</option>
+                  <option value="InProgress" ${project.status === 'InProgress' ? 'selected' : ''} data-i18n="projects.inProgress">In Progress</option>
+                  <option value="Completed" ${project.status === 'Completed' ? 'selected' : ''} data-i18n="projects.completed">Completed</option>
+                  <option value="OnHold" ${project.status === 'OnHold' ? 'selected' : ''} data-i18n="projects.onHold">On Hold</option>
+                  <option value="Cancelled" ${project.status === 'Cancelled' ? 'selected' : ''} data-i18n="projects.cancelled">Cancelled</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label" data-i18n="projects.priority">Priority</label>
+                <select id="editProjectPriority" class="form-select">
+                  <option value="Low" ${project.priority === 'Low' ? 'selected' : ''} data-i18n="projects.low">Low</option>
+                  <option value="Medium" ${project.priority === 'Medium' ? 'selected' : ''} data-i18n="projects.medium">Medium</option>
+                  <option value="High" ${project.priority === 'High' ? 'selected' : ''} data-i18n="projects.high">High</option>
+                  <option value="Critical" ${project.priority === 'Critical' ? 'selected' : ''} data-i18n="projects.critical">Critical</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="grid grid-2">
+              <div class="form-group">
+                <label class="form-label" data-i18n="projects.startDate">Start Date</label>
+                <input type="date" id="editProjectStartDate" class="form-input" value="${Utils.formatDateForInput(project.startDate)}">
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label" data-i18n="projects.endDate">End Date</label>
+                <input type="date" id="editProjectEndDate" class="form-input" value="${Utils.formatDateForInput(project.endDate)}">
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label" data-i18n="projects.budget">Budget</label>
+              <input type="number" id="editProjectBudget" class="form-input" value="${project.budget || ''}" placeholder="0.00">
+            </div>
+          </form>
+        `;
+
+        Utils.createModal(I18n.t('projects.editProject'), modalHTML, async () => {
+          await updateProject(projectId);
+        });
+        I18n.applyTranslations();
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || I18n.t('projects.failedToLoad'), 'danger');
+      }
+    }
+
+    async function updateProject(projectId) {
+      const form = document.getElementById('editProjectForm');
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+
+      const data = {
+        name: document.getElementById('editProjectName').value,
+        description: document.getElementById('editProjectDescription').value || '',
+        status: document.getElementById('editProjectStatus').value,
+        priority: document.getElementById('editProjectPriority').value,
+        startDate: document.getElementById('editProjectStartDate').value || null,
+        endDate: document.getElementById('editProjectEndDate').value || null,
+        budget: document.getElementById('editProjectBudget').value ? parseFloat(document.getElementById('editProjectBudget').value) : null
+      };
+
+      try {
+        Utils.showLoading();
+        await api.updateProject(projectId, data);
+        Utils.hideLoading();
+        Utils.showAlert(I18n.t('projects.projectUpdated'), 'success');
+        loadProjects();
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || I18n.t('projects.failedToUpdate'), 'danger');
+        throw error;
+      }
+    }
+
+    async function deleteProject(projectId) {
+      if (!await Utils.confirm(I18n.t('projects.deleteProjectConfirm'))) {
+        return;
+      }
+
+      try {
+        Utils.showLoading();
+        await api.deleteProject(projectId);
+        Utils.hideLoading();
+        Utils.showAlert(I18n.t('projects.projectDeleted'), 'success');
+        loadProjects();
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || I18n.t('projects.failedToDelete'), 'danger');
+      }
+    }
+
+    // Load projects on page load
+    loadProjects();
+  </script>
+</body>
+</html>
+

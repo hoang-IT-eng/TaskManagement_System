@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kanban Board - Task Management System</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .kanban-board {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .kanban-column {
+      background-color: var(--gray-100);
+      border-radius: var(--radius-lg);
+      padding: 1rem;
+      min-height: 400px;
+    }
+
+    .kanban-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid var(--gray-300);
+    }
+
+    .kanban-title {
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    .kanban-count {
+      background-color: var(--gray-300);
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .kanban-card {
+      background-color: white;
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      box-shadow: var(--shadow-sm);
+      cursor: move;
+      transition: var(--transition);
+      user-select: none;
+    }
+
+    .kanban-card:hover {
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+    }
+
+    .kanban-card.dragging {
+      opacity: 0.5;
+      transform: rotate(5deg);
+    }
+
+    .kanban-column.drag-over {
+      background-color: rgba(59, 130, 246, 0.1);
+      border: 2px dashed var(--primary);
+    }
+
+    .kanban-column.drag-over .kanban-header {
+      border-bottom-color: var(--primary);
+    }
+
+    .kanban-card-title {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      font-size: 0.9375rem;
+    }
+
+    .kanban-card-meta {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      font-size: 0.75rem;
+      color: var(--gray-600);
+    }
+
+    @media (max-width: 992px) {
+      .kanban-board {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 576px) {
+      .kanban-board {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-content">
+      <a href="dashboard.html" class="navbar-brand" data-i18n="nav.taskManage">📋 SmartWork</a>
+      <ul class="navbar-menu">
+        <li><a href="dashboard.html" data-i18n="nav.dashboard">Dashboard</a></li>
+        <li><a href="projects.html" data-i18n="nav.projects">Projects</a></li>
+        <li><a href="teams.html" data-i18n="nav.teams">Teams</a></li>
+        <li><a href="reports.html" data-i18n="nav.reports">Reports</a></li>
+        <li id="adminMenuItem" class="hidden"><a href="admin.html" data-i18n="nav.admin">Admin</a></li>
+      </ul>
+      <div class="navbar-user">
+        <div id="languageSwitcher"></div>
+        <div class="navbar-avatar" id="userAvatar"></div>
+        <span id="userName"></span>
+        <a href="profile.html" class="btn btn-sm btn-secondary" style="text-decoration: none;" data-i18n="common.profile">⚙️ Profile</a>
+        <button class="btn btn-sm btn-secondary" onclick="Auth.logout()" data-i18n="common.logout">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="container" style="padding-top: 2rem; padding-bottom: 2rem;">
+    <!-- Project Header -->
+    <div id="projectHeader">
+      <div class="flex-center" style="padding: 3rem;">
+        <div class="loading"></div>
+      </div>
+    </div>
+
+    <!-- View Toggle -->
+    <div class="card" style="padding: 1rem;">
+      <div style="display: flex; gap: 1rem; align-items: center;">
+        <a href="project-detail.html?id=" id="listViewLink" class="btn btn-sm" style="text-decoration: none;">
+          📋 List View
+        </a>
+        <button class="btn btn-sm btn-primary">
+          📊 Kanban View
+        </button>
+        <div style="flex: 1;"></div>
+        <button class="btn btn-primary" onclick="openCreateTaskModal()">+ Add Task</button>
+      </div>
+    </div>
+
+    <!-- Kanban Board -->
+    <div id="kanbanBoard" class="kanban-board">
+      <div class="flex-center" style="padding: 5rem;">
+        <div class="loading"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/translations.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/utils.js"></script>
+  <script>
+    // Require authentication
+    Auth.requireAuth();
+
+    // Ensure language switcher is initialized
+    if (typeof I18n !== 'undefined') {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+          I18n.initLanguageSwitcher();
+          I18n.updateLanguageSwitcher();
+        });
+      } else {
+        I18n.initLanguageSwitcher();
+        I18n.updateLanguageSwitcher();
+      }
+    }
+
+    // Display user info
+    const user = Auth.getCurrentUser();
+    document.getElementById('userName').textContent = user.fullName;
+    document.getElementById('userAvatar').textContent = Utils.getUserInitials(user.fullName);
+
+    // Show admin menu if user is admin
+    if (Auth.isAdmin()) {
+      document.getElementById('adminMenuItem').classList.remove('hidden');
+    }
+
+    // Get project ID from URL
+    const projectId = Utils.getQueryParam('id');
+    if (!projectId) {
+      window.location.href = 'projects.html';
+    }
+
+    // Update list view link
+    document.getElementById('listViewLink').href = `project-detail.html?id=${projectId}`;
+
+    let currentProject = null;
+    let currentTasks = [];
+    let projectMembers = [];
+
+    // Kanban columns configuration
+    const columns = [
+      { id: 'Todo', title: '📝 Todo', color: 'secondary' },
+      { id: 'InProgress', title: '🔄 In Progress', color: 'primary' },
+      { id: 'InReview', title: '👀 In Review', color: 'info' },
+      { id: 'Done', title: '✅ Done', color: 'success' }
+    ];
+
+    // Load project and tasks
+    async function loadProjectData() {
+      try {
+        const [project, tasks, members] = await Promise.all([
+          api.getProject(projectId),
+          api.getProjectTasks(projectId),
+          api.getProjectMembers(projectId)
+        ]);
+        
+        currentProject = project;
+        currentTasks = tasks.filter(t => t.status !== 'Cancelled'); // Hide cancelled tasks
+        projectMembers = members;
+        
+        displayProjectHeader(project);
+        displayKanbanBoard(currentTasks);
+      } catch (error) {
+        console.error('Failed to load project:', error);
+        Utils.showAlert('Failed to load project data', 'danger');
+      }
+    }
+
+    function displayProjectHeader(project) {
+      document.getElementById('projectHeader').innerHTML = `
+        <div class="card mb-3">
+          <div class="flex-between">
+            <div>
+              <h1 style="margin: 0 0 0.5rem 0; font-size: 2rem;">${Utils.escapeHtml(project.name)}</h1>
+              <p class="text-muted">${project.description ? Utils.escapeHtml(project.description) : 'No description'}</p>
+            </div>
+            <a href="projects.html" class="btn btn-secondary">← Back</a>
+          </div>
+        </div>
+      `;
+    }
+
+    function displayKanbanBoard(tasks) {
+      const board = document.getElementById('kanbanBoard');
+      
+      board.innerHTML = columns.map(column => {
+        const columnTasks = tasks.filter(t => t.status === column.id);
+        
+        return `
+          <div class="kanban-column">
+            <div class="kanban-header">
+              <div class="kanban-title">${column.title}</div>
+              <div class="kanban-count">${columnTasks.length}</div>
+            </div>
+            
+            <div class="kanban-column-content" data-column-id="${column.id}" 
+                 ondrop="handleDrop(event, '${column.id}')" 
+                 ondragover="handleDragOver(event)" 
+                 ondragleave="handleDragLeave(event)">
+              ${columnTasks.length === 0 ? `
+                <div style="text-align: center; padding: 2rem; color: var(--gray-500); font-size: 0.875rem;">
+                  No tasks
+                </div>
+              ` : columnTasks.map(task => `
+                <div class="kanban-card" 
+                     draggable="true"
+                     data-task-id="${task.taskId}"
+                     data-task-status="${task.status}"
+                     ondragstart="handleDragStart(event, ${task.taskId}, '${task.status}')"
+                     ondragend="handleDragEnd(event)"
+                     onclick="viewTask(${task.taskId})">
+                  <div class="kanban-card-title">${Utils.escapeHtml(task.title)}</div>
+                  ${task.description ? `
+                    <p style="font-size: 0.8125rem; color: var(--gray-600); margin-bottom: 0.5rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                      ${Utils.escapeHtml(task.description)}
+                    </p>
+                  ` : ''}
+                  <div class="kanban-card-meta">
+                    <span class="badge badge-${Utils.getPriorityBadgeClass(task.priority)}" style="font-size: 0.6875rem;">
+                      ${task.priority}
+                    </span>
+                    ${task.assigneeName ? `
+                      <span>👤 ${Utils.escapeHtml(task.assigneeName)}</span>
+                    ` : ''}
+                    ${task.dueDate ? `
+                      <span>📅 ${Utils.formatDate(task.dueDate)}</span>
+                    ` : ''}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function viewTask(taskId) {
+      // Could open a modal with task details or navigate to detail page
+      window.location.href = `project-detail.html?id=${projectId}#task-${taskId}`;
+    }
+
+    // Create task modal (same as in project-detail.html)
+    function openCreateTaskModal() {
+      // Filter members (exclude Viewer role)
+      const assignableMembers = projectMembers.filter(m => m.role !== 'Viewer' && m.isActive);
+      
+      const modalHTML = `
+        <form id="createTaskForm">
+          <div class="form-group">
+            <label class="form-label">Task Title *</label>
+            <input type="text" id="taskTitle" class="form-input" required>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <textarea id="taskDescription" class="form-textarea" rows="3"></textarea>
+          </div>
+          
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label class="form-label">Status</label>
+              <select id="taskStatus" class="form-select">
+                <option value="Todo">Todo</option>
+                <option value="InProgress">In Progress</option>
+                <option value="InReview">In Review</option>
+                <option value="Done">Done</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Priority</label>
+              <select id="taskPriority" class="form-select">
+                <option value="Low">Low</option>
+                <option value="Medium" selected>Medium</option>
+                <option value="High">High</option>
+                <option value="Urgent">Urgent</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Assign To</label>
+            <select id="taskAssignee" class="form-select">
+              <option value="">-- Unassigned --</option>
+              ${assignableMembers.map(member => `
+                <option value="${member.userId}">
+                  ${Utils.escapeHtml(member.userFullName)} (${Utils.escapeHtml(member.userEmail)})
+                </option>
+              `).join('')}
+            </select>
+            <p class="form-help">Select a project member to assign this task</p>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Due Date</label>
+            <input type="date" id="taskDueDate" class="form-input">
+          </div>
+        </form>
+      `;
+
+      Utils.createModal('Create New Task', modalHTML, async () => {
+        await createTask();
+      });
+    }
+
+    async function createTask() {
+      const form = document.getElementById('createTaskForm');
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+
+      const assigneeId = document.getElementById('taskAssignee').value;
+      
+      const data = {
+        title: document.getElementById('taskTitle').value,
+        description: document.getElementById('taskDescription').value || '',
+        status: document.getElementById('taskStatus').value,
+        priority: document.getElementById('taskPriority').value,
+        assigneeId: assigneeId ? parseInt(assigneeId) : null,
+        dueDate: document.getElementById('taskDueDate').value || null
+      };
+
+      try {
+        Utils.showLoading();
+        await api.createTask(projectId, data);
+        Utils.hideLoading();
+        Utils.showAlert('Task created successfully!', 'success');
+        loadProjectData();
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || 'Failed to create task', 'danger');
+        throw error;
+      }
+    }
+
+    // ==================== DRAG & DROP HANDLERS ====================
+    let draggedTaskId = null;
+    let draggedTaskStatus = null;
+    let draggedElement = null;
+    let originalColumn = null;
+
+    function handleDragStart(event, taskId, currentStatus) {
+      draggedTaskId = taskId;
+      draggedTaskStatus = currentStatus;
+      draggedElement = event.target;
+      originalColumn = event.target.closest('.kanban-column');
+      
+      event.target.classList.add('dragging');
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/html', event.target.outerHTML);
+    }
+
+    function handleDragOver(event) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+      
+      const column = event.currentTarget.closest('.kanban-column');
+      if (column) {
+        column.classList.add('drag-over');
+      }
+    }
+
+    function handleDragLeave(event) {
+      const column = event.currentTarget.closest('.kanban-column');
+      if (column) {
+        column.classList.remove('drag-over');
+      }
+    }
+
+    async function handleDrop(event, newStatus) {
+      event.preventDefault();
+      
+      const column = event.currentTarget.closest('.kanban-column');
+      if (column) {
+        column.classList.remove('drag-over');
+      }
+
+      // If dropped in the same column, do nothing
+      if (newStatus === draggedTaskStatus) {
+        if (draggedElement) {
+          draggedElement.classList.remove('dragging');
+        }
+        return;
+      }
+
+      // Store original position for revert
+      const originalTask = currentTasks.find(t => t.taskId === draggedTaskId);
+      if (!originalTask) {
+        return;
+      }
+
+      // Optimistically update UI
+      const taskElement = draggedElement;
+      const oldColumn = originalColumn;
+      const newColumn = column;
+      
+      // Remove from old column
+      taskElement.remove();
+      
+      // Add to new column (temporarily)
+      const newColumnContent = newColumn.querySelector('.kanban-column-content');
+      if (newColumnContent) {
+        newColumnContent.appendChild(taskElement);
+        taskElement.classList.remove('dragging');
+      }
+
+      // Update task status via API
+      try {
+        Utils.showLoading();
+        const task = await api.getTask(projectId, draggedTaskId);
+        
+        const updateData = {
+          title: task.title,
+          description: task.description || '',
+          status: newStatus,
+          priority: task.priority,
+          assigneeId: task.assigneeId,
+          dueDate: task.dueDate
+        };
+
+        await api.updateTask(projectId, draggedTaskId, updateData);
+        Utils.hideLoading();
+        
+        // Reload board to reflect changes
+        await loadProjectData();
+      } catch (error) {
+        Utils.hideLoading();
+        
+        // Revert UI: Move task back to original column
+        if (taskElement && oldColumn) {
+          const oldColumnContent = oldColumn.querySelector('.kanban-column-content');
+          if (oldColumnContent) {
+            // Find the correct position in the original column
+            const originalColumnTasks = currentTasks.filter(t => t.status === draggedTaskStatus);
+            const taskIndex = originalColumnTasks.findIndex(t => t.taskId === draggedTaskId);
+            
+            // Insert at original position or append
+            if (taskIndex >= 0 && oldColumnContent.children[taskIndex]) {
+              oldColumnContent.insertBefore(taskElement, oldColumnContent.children[taskIndex]);
+            } else {
+              oldColumnContent.appendChild(taskElement);
+            }
+          }
+        }
+        
+        // Show error message
+        const errorMessage = error.message || 'Failed to update task status. You may not have permission to perform this action.';
+        Utils.showAlert(errorMessage, 'danger');
+        
+        // Remove dragging class
+        if (taskElement) {
+          taskElement.classList.remove('dragging');
+        }
+      } finally {
+        // Reset drag state
+        draggedTaskId = null;
+        draggedTaskStatus = null;
+        draggedElement = null;
+        originalColumn = null;
+      }
+    }
+
+    function handleDragEnd(event) {
+      event.target.classList.remove('dragging');
+      
+      // Remove drag-over from all columns
+      document.querySelectorAll('.kanban-column').forEach(col => {
+        col.classList.remove('drag-over');
+      });
+    }
+
+    // Load data on page load
+    loadProjectData();
+  </script>
+</body>
+</html>
+

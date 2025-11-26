@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Task Management System</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-content">
+      <a href="dashboard.html" class="navbar-brand" data-i18n="nav.taskManage">📋 SmartWork</a>
+      <ul class="navbar-menu">
+        <li><a href="dashboard.html" data-i18n="nav.dashboard">Dashboard</a></li>
+        <li><a href="projects.html" data-i18n="nav.projects">Projects</a></li>
+        <li><a href="teams.html" data-i18n="nav.teams">Teams</a></li>
+        <li><a href="reports.html" data-i18n="nav.reports">Reports</a></li>
+        <li id="adminMenuItem" class="hidden"><a href="admin.html" data-i18n="nav.admin">Admin</a></li>
+      </ul>
+      <div class="navbar-user">
+        <div id="languageSwitcher"></div>
+        <div class="navbar-avatar" id="userAvatar"></div>
+        <span id="userName"></span>
+        <a href="profile.html" class="btn btn-sm btn-secondary" style="text-decoration: none;" data-i18n="common.profile">⚙️ Profile</a>
+        <button class="btn btn-sm btn-secondary" onclick="Auth.logout()" data-i18n="common.logout">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="container" style="padding-top: 2rem; padding-bottom: 2rem;">
+    <div class="page-header">
+      <h1 class="page-title" data-i18n="dashboard.title">Dashboard</h1>
+      <p class="page-subtitle" data-i18n="dashboard.subtitle">Overview of your projects and tasks</p>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-4" id="statsContainer">
+      <div class="stat-card">
+        <div class="stat-value" id="totalProjects">-</div>
+        <div class="stat-label" data-i18n="dashboard.totalProjects">Total Projects</div>
+      </div>
+      <div class="stat-card" style="border-color: var(--success)">
+        <div class="stat-value" id="completedProjects">-</div>
+        <div class="stat-label" data-i18n="dashboard.completed">Completed</div>
+      </div>
+      <div class="stat-card" style="border-color: var(--warning)">
+        <div class="stat-value" id="inProgressProjects">-</div>
+        <div class="stat-label" data-i18n="dashboard.inProgress">In Progress</div>
+      </div>
+      <div class="stat-card" style="border-color: var(--info)">
+        <div class="stat-value" id="totalTasks">-</div>
+        <div class="stat-label" data-i18n="dashboard.totalTasks">Total Tasks</div>
+      </div>
+    </div>
+
+    <!-- Projects Overview -->
+    <div class="card">
+      <div class="card-header flex-between">
+        <h2 data-i18n="dashboard.recentProjects">Recent Projects</h2>
+        <a href="projects.html" class="btn btn-primary" data-i18n="dashboard.viewAll">View All</a>
+      </div>
+      <div id="projectsContainer">
+        <div class="flex-center" style="padding: 3rem;">
+          <div class="loading"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card">
+      <div class="card-header" data-i18n="dashboard.quickActions">Quick Actions</div>
+      <div class="grid grid-3 gap-md">
+        <a href="projects.html" class="btn btn-outline" data-i18n="dashboard.createNewProject">
+          📂 Create New Project
+        </a>
+        <a href="projects.html" class="btn btn-outline" data-i18n="dashboard.viewAllTasks">
+          📋 View All Tasks
+        </a>
+        <a href="reports.html" class="btn btn-outline" data-i18n="dashboard.viewReports">
+          📊 View Reports
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/translations.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/utils.js"></script>
+  <script>
+    // Require authentication
+    Auth.requireAuth();
+
+    // Ensure language switcher is initialized
+    if (typeof I18n !== 'undefined') {
+      // Wait for DOM to be fully ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+          I18n.initLanguageSwitcher();
+          I18n.updateLanguageSwitcher();
+        });
+      } else {
+        I18n.initLanguageSwitcher();
+        I18n.updateLanguageSwitcher();
+      }
+    }
+
+    // Display user info
+    const user = Auth.getCurrentUser();
+    document.getElementById('userName').textContent = user.fullName;
+    document.getElementById('userAvatar').textContent = Utils.getUserInitials(user.fullName);
+
+    // Show admin menu if user is admin
+    if (Auth.isAdmin()) {
+      document.getElementById('adminMenuItem').classList.remove('hidden');
+    }
+
+    // Load dashboard data
+    async function loadDashboard() {
+      try {
+        const projects = await api.getProjects();
+        const statistics = await api.getMyProjectsStatistics();
+
+        // Calculate stats
+        const totalProjects = projects.length;
+        const completedProjects = projects.filter(p => p.status === 'Completed').length;
+        const inProgressProjects = projects.filter(p => p.status === 'InProgress').length;
+        const totalTasks = statistics.reduce((sum, stat) => sum + stat.totalTasks, 0);
+
+        // Update stats display
+        document.getElementById('totalProjects').textContent = totalProjects;
+        document.getElementById('completedProjects').textContent = completedProjects;
+        document.getElementById('inProgressProjects').textContent = inProgressProjects;
+        document.getElementById('totalTasks').textContent = totalTasks;
+
+        // Display recent projects (max 5)
+        displayProjects(projects.slice(0, 5));
+
+      } catch (error) {
+        console.error('Failed to load dashboard:', error);
+        Utils.showAlert(I18n.t('dashboard.failedToLoad', 'Failed to load dashboard data'), 'danger');
+      }
+    }
+
+    function displayProjects(projects) {
+      const container = document.getElementById('projectsContainer');
+      
+      if (projects.length === 0) {
+        container.innerHTML = `
+          <div class="text-center" style="padding: 3rem;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
+            <h3 data-i18n="dashboard.noProjectsYet">No projects yet</h3>
+            <p class="text-muted" data-i18n="dashboard.createFirstProject">Create your first project to get started</p>
+            <a href="projects.html" class="btn btn-primary mt-2" data-i18n="dashboard.createProject">Create Project</a>
+          </div>
+        `;
+        I18n.applyTranslations();
+        return;
+      }
+
+      container.innerHTML = `
+        <table class="table">
+          <thead>
+            <tr>
+              <th data-i18n="dashboard.projectName">Project Name</th>
+              <th data-i18n="dashboard.status">Status</th>
+              <th data-i18n="dashboard.owner">Owner</th>
+              <th data-i18n="dashboard.created">Created</th>
+              <th data-i18n="dashboard.action">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${projects.map(project => `
+              <tr>
+                <td>
+                  <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <strong>${Utils.escapeHtml(project.name)}</strong>
+                    <span class="badge ${Utils.getPriorityBadgeClass(project.priority)}">${I18n.translatePriority(project.priority)}</span>
+                  </div>
+                </td>
+                <td><span class="badge ${Utils.getStatusBadgeClass(project.status)}">${I18n.translateStatus(project.status)}</span></td>
+                <td>${Utils.escapeHtml(project.ownerName)}</td>
+                <td>${Utils.formatDate(project.createdAt)}</td>
+                <td><a href="project-detail.html?id=${project.projectId}" class="btn btn-sm btn-primary" data-i18n="common.view">View</a></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+      I18n.applyTranslations();
+    }
+
+    // Load data on page load
+    loadDashboard();
+  </script>
+</body>
+</html>
+

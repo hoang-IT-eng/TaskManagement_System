@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile Settings - Task Management System</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-content">
+      <a href="dashboard.html" class="navbar-brand" data-i18n="nav.taskManage">📋 SmartWork</a>
+      <ul class="navbar-menu">
+        <li><a href="dashboard.html" data-i18n="nav.dashboard">Dashboard</a></li>
+        <li><a href="projects.html" data-i18n="nav.projects">Projects</a></li>
+        <li><a href="teams.html" data-i18n="nav.teams">Teams</a></li>
+        <li><a href="reports.html" data-i18n="nav.reports">Reports</a></li>
+        <li id="adminMenuItem" class="hidden"><a href="admin.html" data-i18n="nav.admin">Admin</a></li>
+      </ul>
+      <div class="navbar-user">
+        <div id="languageSwitcher"></div>
+        <div class="navbar-avatar" id="userAvatar"></div>
+        <span id="userName"></span>
+        <button class="btn btn-sm btn-secondary" onclick="Auth.logout()" data-i18n="common.logout">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="container" style="padding-top: 2rem; padding-bottom: 2rem;">
+    <div class="page-header">
+      <h1 class="page-title" data-i18n="common.profile">⚙️ Profile Settings</h1>
+      <p class="page-subtitle">Manage your account settings</p>
+    </div>
+
+    <div class="grid grid-2">
+      <!-- Profile Information -->
+      <div class="card">
+        <h2 class="card-header">👤 Profile Information</h2>
+        <form id="profileForm">
+          <div class="form-group">
+            <label class="form-label">Full Name *</label>
+            <input type="text" id="profileFullName" class="form-input" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input type="email" id="profileEmail" class="form-input" disabled>
+            <p class="form-help">Email cannot be changed</p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Role</label>
+            <input type="text" id="profileRole" class="form-input" disabled>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Member Since</label>
+            <input type="text" id="profileCreatedAt" class="form-input" disabled>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block">
+            💾 Save Changes
+          </button>
+        </form>
+      </div>
+
+      <!-- Security Settings -->
+      <div class="card">
+        <h2 class="card-header">🔒 Security Settings</h2>
+        <form id="changePasswordForm">
+          <div class="form-group">
+            <label class="form-label">Current Password *</label>
+            <input type="password" id="currentPassword" class="form-input" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">New Password *</label>
+            <input type="password" id="newPassword" class="form-input" required minlength="6">
+            <p class="form-help">Minimum 6 characters</p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Confirm New Password *</label>
+            <input type="password" id="confirmPassword" class="form-input" required>
+          </div>
+
+          <button type="submit" class="btn btn-warning btn-block">
+            🔑 Change Password
+          </button>
+        </form>
+
+        <hr style="margin: 2rem 0;">
+
+        <div>
+          <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem;">Account Security</h3>
+          <p class="text-muted" style="font-size: 0.875rem; margin-bottom: 1rem;">
+            Last login: <span id="lastLogin">-</span>
+          </p>
+          <button class="btn btn-danger btn-block" onclick="logoutAllDevices()">
+            🚪 Logout All Devices
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Danger Zone -->
+    <div class="card" style="border: 2px solid var(--danger); margin-top: 2rem;">
+      <h2 style="color: var(--danger); font-size: 1.25rem; margin-bottom: 1rem;">⚠️ Danger Zone</h2>
+      <p class="text-muted" style="margin-bottom: 1rem;">
+        Once you delete your account, there is no going back. Please be certain.
+      </p>
+      <button class="btn btn-danger" onclick="deleteAccount()">
+        Delete My Account
+      </button>
+    </div>
+  </div>
+
+  <script src="js/translations.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/utils.js"></script>
+  <script>
+    // Require authentication
+    Auth.requireAuth();
+
+    // Ensure language switcher is initialized
+    if (typeof I18n !== 'undefined') {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+          I18n.initLanguageSwitcher();
+          I18n.updateLanguageSwitcher();
+        });
+      } else {
+        I18n.initLanguageSwitcher();
+        I18n.updateLanguageSwitcher();
+      }
+    }
+
+    // Display user info
+    const user = Auth.getCurrentUser();
+    document.getElementById('userName').textContent = user.fullName;
+    document.getElementById('userAvatar').textContent = Utils.getUserInitials(user.fullName);
+
+    // Show admin menu if user is admin
+    if (Auth.isAdmin()) {
+      document.getElementById('adminMenuItem').classList.remove('hidden');
+    }
+
+    // Load profile data
+    async function loadProfile() {
+      try {
+        const profile = await api.getProfile();
+        
+        // Fill form
+        document.getElementById('profileFullName').value = profile.fullName;
+        document.getElementById('profileEmail').value = profile.email;
+        document.getElementById('profileRole').value = profile.role;
+        document.getElementById('profileCreatedAt').value = Utils.formatDate(profile.createdAt);
+        
+        if (profile.lastLoginAt) {
+          document.getElementById('lastLogin').textContent = Utils.formatDate(profile.lastLoginAt);
+        }
+      } catch (error) {
+        console.error('Failed to load profile:', error);
+        Utils.showAlert('Failed to load profile data', 'danger');
+      }
+    }
+
+    // Handle profile update
+    document.getElementById('profileForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const data = {
+        fullName: document.getElementById('profileFullName').value
+      };
+
+      try {
+        Utils.showLoading();
+        await api.put('/user/profile', data);
+        
+        // Update stored user
+        user.fullName = data.fullName;
+        Auth.setAuth(localStorage.getItem('token'), user);
+        
+        // Update navbar
+        document.getElementById('userName').textContent = user.fullName;
+        document.getElementById('userAvatar').textContent = Utils.getUserInitials(user.fullName);
+        
+        Utils.hideLoading();
+        Utils.showAlert('Profile updated successfully!', 'success');
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || 'Failed to update profile', 'danger');
+      }
+    });
+
+    // Handle password change
+    document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const currentPassword = document.getElementById('currentPassword').value;
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+
+      if (newPassword !== confirmPassword) {
+        Utils.showAlert('New passwords do not match!', 'danger');
+        return;
+      }
+
+      try {
+        Utils.showLoading();
+        await api.post('/user/change-password', {
+          currentPassword,
+          newPassword
+        });
+        
+        Utils.hideLoading();
+        Utils.showAlert('Password changed successfully!', 'success');
+        
+        // Clear form
+        document.getElementById('changePasswordForm').reset();
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || 'Failed to change password', 'danger');
+      }
+    });
+
+    function logoutAllDevices() {
+      if (confirm('This will log you out from all devices. Continue?')) {
+        Auth.logout();
+      }
+    }
+
+    async function deleteAccount() {
+      if (!confirm('Are you ABSOLUTELY sure you want to delete your account? This action CANNOT be undone!')) {
+        return;
+      }
+
+      const email = prompt('Please type your email to confirm deletion:');
+      if (email !== user.email) {
+        Utils.showAlert('Email does not match. Account deletion cancelled.', 'warning');
+        return;
+      }
+
+      try {
+        Utils.showLoading();
+        await api.post('/user/delete-account');
+        Utils.hideLoading();
+        Utils.showAlert('Account deleted. Goodbye!', 'success');
+        setTimeout(() => {
+          Auth.logout();
+        }, 2000);
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || 'Failed to delete account', 'danger');
+      }
+    }
+
+    // Load profile on page load
+    loadProfile();
+  </script>
+</body>
+</html>
+
+

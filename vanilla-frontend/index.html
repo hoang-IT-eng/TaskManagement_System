@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="auth.welcomeBack">Login - Task Management System</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Language Switcher -->
+  <div style="position: fixed; top: 20px; right: 20px; z-index: 1001;">
+    <div id="languageSwitcher"></div>
+  </div>
+
+  <div class="auth-container">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="auth-logo">📋</div>
+        <h1 class="auth-title" id="authTitle" data-i18n="auth.welcomeBack">Welcome Back</h1>
+        <p class="auth-subtitle" id="authSubtitle" data-i18n="auth.signInToManage">Sign in to manage your projects</p>
+      </div>
+
+      <!-- Login Form -->
+      <form id="loginForm">
+        <div class="form-group">
+          <label class="form-label" for="email" data-i18n="auth.emailAddress">Email Address</label>
+          <input 
+            type="email" 
+            id="email" 
+            class="form-input" 
+            data-i18n-placeholder="auth.enterEmail"
+            placeholder="Enter your email"
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password" data-i18n="auth.password">Password</label>
+          <input 
+            type="password" 
+            id="password" 
+            class="form-input" 
+            data-i18n-placeholder="auth.enterPassword"
+            placeholder="Enter your password"
+            required
+          >
+        </div>
+
+        <!-- Full Name (only for register) -->
+        <div class="form-group hidden" id="fullNameGroup">
+          <label class="form-label" for="fullName" data-i18n="auth.fullName">Full Name</label>
+          <input 
+            type="text" 
+            id="fullName" 
+            class="form-input" 
+            data-i18n-placeholder="auth.enterFullName"
+            placeholder="Enter your full name"
+          >
+        </div>
+
+        <!-- Confirm Password (only for register) -->
+        <div class="form-group hidden" id="confirmPasswordGroup">
+          <label class="form-label" for="confirmPassword" data-i18n="auth.confirmPassword">Confirm Password</label>
+          <input 
+            type="password" 
+            id="confirmPassword" 
+            class="form-input" 
+            data-i18n-placeholder="auth.confirmPasswordPlaceholder"
+            placeholder="Confirm your password"
+          >
+        </div>
+
+        <div class="form-group">
+          <button type="submit" class="btn btn-primary btn-block btn-lg" id="submitBtn" data-i18n="auth.signIn">
+            Sign In
+          </button>
+        </div>
+
+        <div class="form-group" id="forgotPasswordLink" style="text-align: center;">
+          <a href="forgot-password.html" style="font-size: 0.875rem; color: var(--primary);" data-i18n="auth.forgotPassword">
+            Forgot password?
+          </a>
+        </div>
+
+        <div class="auth-footer">
+          <p>
+            <span id="toggleText" data-i18n="auth.dontHaveAccount">Don't have an account?</span>
+            <a href="#" id="toggleMode" class="font-semibold" data-i18n="auth.signUp">Sign Up</a>
+          </p>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/translations.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/utils.js"></script>
+  <script>
+    // Ensure language switcher is initialized
+    if (typeof I18n !== 'undefined') {
+      // Wait for DOM to be fully ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+          I18n.initLanguageSwitcher();
+          I18n.updateLanguageSwitcher();
+        });
+      } else {
+        I18n.initLanguageSwitcher();
+        I18n.updateLanguageSwitcher();
+      }
+    }
+
+    // Check if already logged in
+    if (Auth.isAuthenticated()) {
+      window.location.href = 'dashboard.html';
+    }
+
+    let isLoginMode = true;
+
+    const loginForm = document.getElementById('loginForm');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const fullNameInput = document.getElementById('fullName');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    const fullNameGroup = document.getElementById('fullNameGroup');
+    const confirmPasswordGroup = document.getElementById('confirmPasswordGroup');
+    const authTitle = document.getElementById('authTitle');
+    const authSubtitle = document.getElementById('authSubtitle');
+    const submitBtn = document.getElementById('submitBtn');
+    const toggleText = document.getElementById('toggleText');
+    const toggleMode = document.getElementById('toggleMode');
+
+    // Toggle between login and register
+    toggleMode.addEventListener('click', (e) => {
+      e.preventDefault();
+      isLoginMode = !isLoginMode;
+      
+      const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+      
+      if (isLoginMode) {
+        // Switch to Login
+        authTitle.setAttribute('data-i18n', 'auth.welcomeBack');
+        authSubtitle.setAttribute('data-i18n', 'auth.signInToManage');
+        submitBtn.setAttribute('data-i18n', 'auth.signIn');
+        toggleText.setAttribute('data-i18n', 'auth.dontHaveAccount');
+        toggleMode.setAttribute('data-i18n', 'auth.signUp');
+        fullNameGroup.classList.add('hidden');
+        confirmPasswordGroup.classList.add('hidden');
+        fullNameInput.removeAttribute('required');
+        confirmPasswordInput.removeAttribute('required');
+        forgotPasswordLink.classList.remove('hidden');
+      } else {
+        // Switch to Register
+        authTitle.setAttribute('data-i18n', 'auth.createAccount');
+        authSubtitle.setAttribute('data-i18n', 'auth.signUpToGetStarted');
+        submitBtn.setAttribute('data-i18n', 'auth.signUp');
+        toggleText.setAttribute('data-i18n', 'auth.alreadyHaveAccount');
+        toggleMode.setAttribute('data-i18n', 'auth.signIn');
+        fullNameGroup.classList.remove('hidden');
+        confirmPasswordGroup.classList.remove('hidden');
+        fullNameInput.setAttribute('required', 'required');
+        confirmPasswordInput.setAttribute('required', 'required');
+        forgotPasswordLink.classList.add('hidden');
+      }
+      I18n.applyTranslations();
+    });
+
+    // Handle form submission
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+
+      if (isLoginMode) {
+        // Login
+        try {
+          Utils.showLoading();
+          const response = await api.login(email, password);
+          Auth.setAuth(response.token, response.user);
+          Utils.hideLoading();
+          Utils.showAlert(I18n.t('auth.loginSuccessful'), 'success');
+          setTimeout(() => {
+            window.location.href = 'dashboard.html';
+          }, 500);
+        } catch (error) {
+          Utils.hideLoading();
+          Utils.showAlert(error.message || I18n.t('auth.loginFailed'), 'danger');
+        }
+      } else {
+        // Register
+        const fullName = fullNameInput.value.trim();
+        const confirmPassword = confirmPasswordInput.value;
+
+        if (password !== confirmPassword) {
+          Utils.showAlert(I18n.t('auth.passwordsNotMatch'), 'danger');
+          return;
+        }
+
+        try {
+          Utils.showLoading();
+          const response = await api.register(email, password, fullName);
+          Auth.setAuth(response.token, response.user);
+          Utils.hideLoading();
+          Utils.showAlert(I18n.t('auth.registrationSuccessful'), 'success');
+          setTimeout(() => {
+            window.location.href = 'dashboard.html';
+          }, 500);
+        } catch (error) {
+          Utils.hideLoading();
+          Utils.showAlert(error.message || I18n.t('auth.registrationFailed'), 'danger');
+        }
+      }
+    });
+  </script>
+</body>
+</html>
+

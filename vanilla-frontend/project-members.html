@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Members - Task Management System</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-content">
+      <a href="dashboard.html" class="navbar-brand" data-i18n="nav.taskManage">📋 SmartWork</a>
+      <ul class="navbar-menu">
+        <li><a href="dashboard.html" data-i18n="nav.dashboard">Dashboard</a></li>
+        <li><a href="projects.html" data-i18n="nav.projects">Projects</a></li>
+        <li><a href="teams.html" data-i18n="nav.teams">Teams</a></li>
+        <li><a href="reports.html" data-i18n="nav.reports">Reports</a></li>
+        <li id="adminMenuItem" class="hidden"><a href="admin.html" data-i18n="nav.admin">Admin</a></li>
+      </ul>
+      <div class="navbar-user">
+        <div id="languageSwitcher"></div>
+        <div class="navbar-avatar" id="userAvatar"></div>
+        <span id="userName"></span>
+        <button class="btn btn-sm btn-secondary" onclick="Auth.logout()" data-i18n="common.logout">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="container" style="padding-top: 2rem; padding-bottom: 2rem;">
+    <!-- Project Header -->
+    <div id="projectHeader">
+      <div class="flex-center" style="padding: 3rem;">
+        <div class="loading"></div>
+      </div>
+    </div>
+
+    <!-- Members Section -->
+    <div class="card">
+      <div class="flex-between mb-3">
+        <h2>👥 Project Members</h2>
+        <button class="btn btn-primary" onclick="openAddMemberModal()">+ Add Member</button>
+      </div>
+      
+      <div id="membersContainer">
+        <div class="flex-center" style="padding: 3rem;">
+          <div class="loading"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/translations.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/utils.js"></script>
+  <script>
+    // Require authentication
+    Auth.requireAuth();
+
+    // Ensure language switcher is initialized
+    if (typeof I18n !== 'undefined') {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+          I18n.initLanguageSwitcher();
+          I18n.updateLanguageSwitcher();
+        });
+      } else {
+        I18n.initLanguageSwitcher();
+        I18n.updateLanguageSwitcher();
+      }
+    }
+
+    // Display user info
+    const user = Auth.getCurrentUser();
+    document.getElementById('userName').textContent = user.fullName;
+    document.getElementById('userAvatar').textContent = Utils.getUserInitials(user.fullName);
+
+    // Show admin menu if user is admin
+    if (Auth.isAdmin()) {
+      document.getElementById('adminMenuItem').classList.remove('hidden');
+    }
+
+    // Get project ID from URL
+    const projectId = Utils.getQueryParam('id');
+    if (!projectId) {
+      window.location.href = 'projects.html';
+    }
+
+    let currentProject = null;
+    let currentMembers = [];
+
+    // Load project and members
+    async function loadProjectData() {
+      try {
+        Utils.showLoading();
+        const [project, membersResponse] = await Promise.all([
+          api.getProject(projectId),
+          api.getProjectMembers(projectId)
+        ]);
+        
+        console.log('Raw members response:', membersResponse);
+        
+        // Handle response format - could be array or {data: [...]}
+        // handleResponse already extracts data.data || data, so should be array
+        let members = [];
+        if (Array.isArray(membersResponse)) {
+          members = membersResponse;
+        } else if (membersResponse && membersResponse.data && Array.isArray(membersResponse.data)) {
+          members = membersResponse.data;
+        } else if (membersResponse && typeof membersResponse === 'object') {
+          // Try to find array in response
+          members = Object.values(membersResponse).find(v => Array.isArray(v)) || [];
+        }
+        
+        console.log('Processed members:', members);
+        console.log('Members count:', members.length);
+        
+        if (members.length > 0) {
+          console.log('First member structure:', members[0]);
+        }
+        
+        currentProject = project;
+        currentMembers = members;
+        
+        displayProjectHeader(project);
+        displayMembers(members);
+        Utils.hideLoading();
+      } catch (error) {
+        console.error('Failed to load project:', error);
+        Utils.hideLoading();
+        Utils.showAlert('Failed to load project data: ' + (error.message || 'Unknown error'), 'danger');
+      }
+    }
+
+    function displayProjectHeader(project) {
+      document.getElementById('projectHeader').innerHTML = `
+        <div class="card mb-3">
+          <div class="flex-between">
+            <div>
+              <h1 style="margin: 0 0 0.5rem 0; font-size: 2rem;">${Utils.escapeHtml(project.name)}</h1>
+              <p class="text-muted">${project.description ? Utils.escapeHtml(project.description) : 'No description'}</p>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+              <a href="project-detail.html?id=${projectId}" class="btn btn-secondary">← Back to Project</a>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function displayMembers(members) {
+      const container = document.getElementById('membersContainer');
+      
+      // Handle both array and object with data property
+      const membersArray = Array.isArray(members) ? members : (members.data || members || []);
+      
+      if (!membersArray || membersArray.length === 0) {
+        container.innerHTML = `
+          <div class="text-center" style="padding: 3rem;">
+            <p class="text-muted">No members yet. Add members to collaborate!</p>
+          </div>
+        `;
+        return;
+      }
+
+      const roleColors = {
+        'Owner': 'danger',
+        'Admin': 'warning',
+        'Member': 'primary',
+        'Viewer': 'secondary'
+      };
+
+      container.innerHTML = `
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Member</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Project Role</th>
+              <th>Joined</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${membersArray.map(member => {
+              // Support both camelCase (actual API response) and PascalCase (fallback)
+              // API returns: { user: { fullName, email, userId }, userId, role, projectMemberId, ... }
+              // Priority: camelCase first (actual format), then PascalCase (fallback)
+              const userObj = member.user || member.User || {};
+              const userFullName = userObj.fullName || userObj.FullName || member.userFullName || '';
+              const userEmail = userObj.email || userObj.Email || member.userEmail || '';
+              const userId = member.userId || member.UserId || userObj.userId || userObj.UserId || 0;
+              const role = member.role || member.Role || '';
+              const projectRoleCode = member.projectRoleCode || member.ProjectRoleCode || '';
+              const joinedAt = member.joinedAt || member.JoinedAt || '';
+              const isActive = member.isActive !== undefined ? member.isActive : (member.IsActive !== undefined ? member.IsActive : true);
+              const projectMemberId = member.projectMemberId || member.ProjectMemberId || 0;
+              
+              // Debug log if data missing
+              if (!userFullName || !userEmail) {
+                console.warn('Member data format issue - missing name/email:', {
+                  member,
+                  userObj,
+                  userFullName,
+                  userEmail
+                });
+              }
+              
+              return `
+              <tr>
+                <td>
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <div class="navbar-avatar" style="width: 32px; height: 32px; font-size: 0.875rem;">
+                      ${Utils.getUserInitials(userFullName)}
+                    </div>
+                    <strong>${Utils.escapeHtml(userFullName)}</strong>
+                  </div>
+                </td>
+                <td>${Utils.escapeHtml(userEmail)}</td>
+                <td>
+                  <span class="badge badge-${roleColors[role] || 'secondary'}">
+                    ${role}
+                  </span>
+                </td>
+                <td>
+                  ${projectRoleCode ? 
+                    `<span class="badge badge-primary">${Utils.escapeHtml(projectRoleCode)}</span>` :
+                    '<span class="text-muted">—</span>'
+                  }
+                </td>
+                <td>${Utils.formatDate(joinedAt)}</td>
+                <td>
+                  ${isActive ? 
+                    '<span class="badge badge-success">Active</span>' :
+                    '<span class="badge badge-secondary">Inactive</span>'
+                  }
+                </td>
+                <td>
+                  ${role !== 'Owner' && userId !== user.userId ? `
+                    <button class="btn btn-sm btn-primary" onclick="editProjectRole(${projectMemberId}, '${Utils.escapeHtml(projectRoleCode)}')" title="Edit Project Role">
+                      Edit Role
+                    </button>
+                    <button class="btn btn-sm btn-warning" onclick="changeRole(${projectMemberId}, '${role}')">
+                      Change Role
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="removeMember(${projectMemberId})">
+                      Remove
+                    </button>
+                  ` : '<span class="text-muted">—</span>'}
+                </td>
+              </tr>
+            `;
+            }).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    async function openAddMemberModal() {
+      try {
+        Utils.showLoading();
+        const response = await api.getAvailableUsers(projectId);
+        console.log('Available users response:', response);
+        // handleResponse already extracts data.data || data, so response should be array or {data: [...]}
+        const availableUsers = Array.isArray(response) ? response : (response.data || []);
+        Utils.hideLoading();
+
+        if (!availableUsers || availableUsers.length === 0) {
+          Utils.showAlert('No available users to add. All users are already members of this project.', 'info');
+          return;
+        }
+
+        const modalHTML = `
+          <form id="addMemberForm">
+            <div class="form-group">
+              <label class="form-label">Select User *</label>
+              <select id="memberUserId" class="form-select" required>
+                <option value="">-- Choose a user --</option>
+                ${availableUsers.map(user => `
+                  <option value="${user.UserId || user.userId}">
+                    ${Utils.escapeHtml(user.FullName || user.fullName)} (${Utils.escapeHtml(user.Email || user.email)})
+                  </option>
+                `).join('')}
+              </select>
+              <p class="form-help">Select a user to add to this project</p>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Role</label>
+              <select id="memberRole" class="form-select">
+                <option value="Member">Member</option>
+                <option value="Admin">Admin</option>
+                <option value="Viewer">Viewer</option>
+              </select>
+              <p class="form-help">
+                <strong>Member:</strong> Can work on tasks<br>
+                <strong>Admin:</strong> Can manage project & members<br>
+                <strong>Viewer:</strong> Read-only access
+              </p>
+            </div>
+          </form>
+        `;
+
+        Utils.createModal('Add Project Member', modalHTML, async () => {
+          await addMember();
+        });
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || 'Failed to load available users', 'danger');
+      }
+    }
+
+    async function addMember() {
+      const form = document.getElementById('addMemberForm');
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+
+      const userId = parseInt(document.getElementById('memberUserId').value);
+      const role = document.getElementById('memberRole').value; // String: "Member", "Admin", "Viewer"
+
+      if (!userId || !role) {
+        Utils.showAlert('Please select a user and role', 'warning');
+        return;
+      }
+
+      try {
+        Utils.showLoading();
+        console.log('Adding member:', { projectId, userId, role });
+        const response = await api.addProjectMember(projectId, userId, role);
+        console.log('Add member response:', response);
+        
+        // Wait a bit for backend to update
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Reload members list
+        console.log('Reloading members list...');
+        await loadProjectData();
+        
+        Utils.hideLoading();
+        Utils.showAlert('Member added successfully!', 'success');
+      } catch (error) {
+        Utils.hideLoading();
+        console.error('Add member error:', error);
+        const errorMessage = error.message || 'Failed to add member';
+        Utils.showAlert(errorMessage, 'danger');
+        throw error; // Re-throw to prevent modal from closing
+      }
+    }
+
+    async function changeRole(memberId, currentRole) {
+      const roles = [
+        { value: 'Owner', label: 'Owner' },
+        { value: 'Admin', label: 'Admin' },
+        { value: 'Member', label: 'Member' },
+        { value: 'Viewer', label: 'Viewer' }
+      ];
+
+      const modalHTML = `
+        <form id="changeRoleForm">
+          <div class="form-group">
+            <label class="form-label">Select New Role</label>
+            <select id="newRole" class="form-select">
+              ${roles.map(role => `
+                <option value="${role.value}" ${role.value === currentRole ? 'selected' : ''}>
+                  ${role.label}
+                </option>
+              `).join('')}
+            </select>
+          </div>
+        </form>
+      `;
+
+      Utils.createModal('Change Member Role', modalHTML, async () => {
+        const newRole = document.getElementById('newRole').value; // String: "Member", "Admin", etc.
+        
+        try {
+          Utils.showLoading();
+          await api.updateMemberRole(projectId, memberId, newRole);
+          Utils.hideLoading();
+          Utils.showAlert('Role updated successfully!', 'success');
+          loadProjectData();
+        } catch (error) {
+          Utils.hideLoading();
+          Utils.showAlert(error.message || 'Failed to update role', 'danger');
+          throw error;
+        }
+      });
+    }
+
+    async function removeMember(memberId) {
+      if (!await Utils.confirm('Are you sure you want to remove this member from the project?')) {
+        return;
+      }
+
+      try {
+        Utils.showLoading();
+        await api.removeMember(projectId, memberId);
+        Utils.hideLoading();
+        Utils.showAlert('Member removed successfully!', 'success');
+        loadProjectData();
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || 'Failed to remove member', 'danger');
+      }
+    }
+
+    // Edit Project Role
+    async function editProjectRole(memberId, currentProjectRoleCode) {
+      const modalHTML = `
+        <form id="editProjectRoleForm">
+          <div class="form-group">
+            <label class="form-label">Project Role Code</label>
+            <input type="text" id="projectRoleCode" class="form-input" value="${Utils.escapeHtml(currentProjectRoleCode || '')}" placeholder="e.g., DEV, QA, LEAD">
+            <small class="form-help">Enter the role code for this member in this project (e.g., DEV, QA, BA, LEAD)</small>
+          </div>
+        </form>
+      `;
+      
+      Utils.createModal('Edit Project Role', modalHTML, async () => {
+        const newProjectRoleCode = document.getElementById('projectRoleCode').value.trim().toUpperCase();
+
+        try {
+          Utils.showLoading();
+          await api.updateProjectMemberRoleCode(projectId, memberId, newProjectRoleCode || null);
+          Utils.hideLoading();
+          Utils.showAlert('Project role updated successfully!', 'success');
+          loadProjectData();
+        } catch (error) {
+          Utils.hideLoading();
+          Utils.showAlert(error.message || 'Failed to update project role', 'danger');
+          throw error;
+        }
+      });
+    }
+
+    // Load data on page load
+    loadProjectData();
+  </script>
+</body>
+</html>
+

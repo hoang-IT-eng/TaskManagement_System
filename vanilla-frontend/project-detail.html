@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Detail - Task Management System</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-content">
+      <a href="dashboard.html" class="navbar-brand" data-i18n="nav.taskManage">📋 SmartWork</a>
+      <ul class="navbar-menu">
+        <li><a href="dashboard.html" data-i18n="nav.dashboard">Dashboard</a></li>
+        <li><a href="projects.html" data-i18n="nav.projects">Projects</a></li>
+        <li><a href="teams.html" data-i18n="nav.teams">Teams</a></li>
+        <li><a href="reports.html" data-i18n="nav.reports">Reports</a></li>
+        <li id="adminMenuItem" class="hidden"><a href="admin.html" data-i18n="nav.admin">Admin</a></li>
+      </ul>
+      <div class="navbar-user">
+        <div id="languageSwitcher"></div>
+        <div class="navbar-avatar" id="userAvatar"></div>
+        <span id="userName"></span>
+        <button class="btn btn-sm btn-secondary" onclick="Auth.logout()" data-i18n="common.logout">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="container" style="padding-top: 2rem; padding-bottom: 2rem;">
+    <!-- Project Header -->
+    <div id="projectHeader">
+      <div class="flex-center" style="padding: 3rem;">
+        <div class="loading"></div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="card" style="padding: 1rem;">
+      <div id="projectTabs" style="display: flex; gap: 1rem; border-bottom: 2px solid var(--gray-200);"></div>
+    </div>
+
+    <!-- Tasks Section -->
+    <div class="card">
+      <div class="flex-between mb-3">
+        <h2 data-i18n="tasks.title">📋 Tasks</h2>
+        <button class="btn btn-primary" onclick="openCreateTaskModal()" data-i18n="tasks.newTask">+ Add Task</button>
+      </div>
+
+      <!-- Filters -->
+      <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 200px;">
+          <label style="font-size: 0.875rem; color: var(--gray-600); display: block; margin-bottom: 0.25rem;" data-i18n="common.search">Search</label>
+          <input 
+            type="text" 
+            id="taskSearch" 
+            class="form-input" 
+            data-i18n-placeholder="common.search"
+            placeholder="Search tasks..."
+            oninput="filterTasks()"
+            style="margin: 0;">
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+          <label style="font-size: 0.875rem; color: var(--gray-600); display: block; margin-bottom: 0.25rem;" data-i18n="dashboard.status">Status</label>
+          <select id="filterStatus" class="form-select" onchange="filterTasks()" style="margin: 0;">
+            <option value="" data-i18n="tasks.allStatus">All Status</option>
+            <option value="Todo" data-i18n="tasks.todo">Todo</option>
+            <option value="InProgress" data-i18n="tasks.inProgress">In Progress</option>
+            <option value="InReview" data-i18n="tasks.inReview">In Review</option>
+            <option value="Done" data-i18n="tasks.done">Done</option>
+            <option value="Cancelled" data-i18n="tasks.cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div style="flex: 1; min-width: 150px;">
+          <label style="font-size: 0.875rem; color: var(--gray-600); display: block; margin-bottom: 0.25rem;" data-i18n="dashboard.priority">Priority</label>
+          <select id="filterPriority" class="form-select" onchange="filterTasks()" style="margin: 0;">
+            <option value="" data-i18n="tasks.allPriority">All Priority</option>
+            <option value="Low" data-i18n="tasks.low">Low</option>
+            <option value="Medium" data-i18n="tasks.medium">Medium</option>
+            <option value="High" data-i18n="tasks.high">High</option>
+            <option value="Urgent" data-i18n="tasks.urgent">Urgent</option>
+          </select>
+        </div>
+        <div style="padding-top: 1.5rem;">
+          <button class="btn btn-secondary" onclick="clearFilters()" data-i18n="tasks.clearFilters">Clear Filters</button>
+        </div>
+      </div>
+      
+      <div id="tasksContainer">
+        <div class="flex-center" style="padding: 3rem;">
+          <div class="loading"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/translations.js"></script>
+  <script src="js/i18n.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/utils.js"></script>
+  <script>
+    // Require authentication
+    Auth.requireAuth();
+
+    // Ensure language switcher is initialized
+    if (typeof I18n !== 'undefined') {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+          I18n.initLanguageSwitcher();
+          I18n.updateLanguageSwitcher();
+        });
+      } else {
+        I18n.initLanguageSwitcher();
+        I18n.updateLanguageSwitcher();
+      }
+    }
+
+    // Display user info
+    const user = Auth.getCurrentUser();
+    document.getElementById('userName').textContent = user.fullName;
+    document.getElementById('userAvatar').textContent = Utils.getUserInitials(user.fullName);
+
+    // Show admin menu if user is admin
+    if (Auth.isAdmin()) {
+      document.getElementById('adminMenuItem').classList.remove('hidden');
+    }
+
+    // Get project ID from URL
+    const projectId = Utils.getQueryParam('id');
+    if (!projectId) {
+      window.location.href = 'projects.html';
+    }
+
+    let currentProject = null;
+    let currentTasks = [];
+    let projectMembers = [];
+
+    // Load project and tasks
+    async function loadProjectData() {
+      try {
+        const [project, tasks, members] = await Promise.all([
+          api.getProject(projectId),
+          api.getProjectTasks(projectId),
+          api.getProjectMembers(projectId)
+        ]);
+        
+        currentProject = project;
+        currentTasks = tasks;
+        projectMembers = members;
+        
+        displayProjectHeader(project);
+        displayTasks(tasks);
+      } catch (error) {
+        console.error('Failed to load project:', error);
+        Utils.showAlert('Failed to load project data', 'danger');
+      }
+    }
+
+    function renderTabs() {
+      document.getElementById('projectTabs').innerHTML = `
+        <button class="btn btn-sm" style="border: none; border-bottom: 2px solid var(--primary); padding-bottom: 0.5rem; background: none;">
+          📋 List View
+        </button>
+        <a href="kanban.html?id=${projectId}" class="btn btn-sm" style="border: none; padding-bottom: 0.5rem; text-decoration: none; background: none; color: var(--gray-700);">
+          📊 Kanban
+        </a>
+        <a href="project-members.html?id=${projectId}" class="btn btn-sm" style="border: none; padding-bottom: 0.5rem; text-decoration: none; background: none; color: var(--gray-700);">
+          👥 Members
+        </a>
+      `;
+    }
+
+    function displayProjectHeader(project) {
+      renderTabs();
+      document.getElementById('projectHeader').innerHTML = `
+        <div class="card mb-3">
+          <div class="flex-between mb-3">
+            <div>
+              <div class="flex gap-md" style="align-items: center; margin-bottom: 0.5rem;">
+                <h1 style="margin: 0; font-size: 2rem;">${Utils.escapeHtml(project.name)}</h1>
+                <span class="badge ${Utils.getStatusBadgeClass(project.status)}">${project.status}</span>
+                <span class="badge ${Utils.getPriorityBadgeClass(project.priority)}">${project.priority}</span>
+              </div>
+              <p class="text-muted">${project.description ? Utils.escapeHtml(project.description) : 'No description'}</p>
+            </div>
+            <a href="projects.html" class="btn btn-secondary">← Back</a>
+          </div>
+          
+          <div class="grid grid-4" style="margin-top: 1.5rem;">
+            <div>
+              <div style="font-size: 0.75rem; color: var(--gray-500); margin-bottom: 0.25rem;">Owner</div>
+              <div><strong>👤 ${Utils.escapeHtml(project.ownerName)}</strong></div>
+            </div>
+            ${project.budget ? `
+              <div>
+                <div style="font-size: 0.75rem; color: var(--gray-500); margin-bottom: 0.25rem;">Budget</div>
+                <div><strong>💰 $${Utils.formatNumber(project.budget)}</strong></div>
+              </div>
+            ` : ''}
+            <div>
+              <div style="font-size: 0.75rem; color: var(--gray-500); margin-bottom: 0.25rem;">Created</div>
+              <div><strong>${Utils.formatDate(project.createdAt)}</strong></div>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; color: var(--gray-500); margin-bottom: 0.25rem;">Tasks</div>
+              <div><strong>📝 ${currentTasks.length} tasks</strong></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function filterTasks() {
+      const searchTerm = document.getElementById('taskSearch').value.toLowerCase();
+      const statusFilter = document.getElementById('filterStatus').value;
+      const priorityFilter = document.getElementById('filterPriority').value;
+
+      const filtered = currentTasks.filter(task => {
+        const matchesSearch = !searchTerm || 
+          task.title.toLowerCase().includes(searchTerm) ||
+          (task.description && task.description.toLowerCase().includes(searchTerm));
+        
+        const matchesStatus = !statusFilter || task.status === statusFilter;
+        const matchesPriority = !priorityFilter || task.priority === priorityFilter;
+
+        return matchesSearch && matchesStatus && matchesPriority;
+      });
+
+      displayTasks(filtered);
+    }
+
+    function clearFilters() {
+      document.getElementById('taskSearch').value = '';
+      document.getElementById('filterStatus').value = '';
+      document.getElementById('filterPriority').value = '';
+      filterTasks();
+    }
+
+    function displayTasks(tasks) {
+      const container = document.getElementById('tasksContainer');
+      
+      if (tasks.length === 0) {
+        container.innerHTML = `
+          <div class="text-center" style="padding: 3rem;">
+            <p class="text-muted">${currentTasks.length > 0 ? I18n.t('tasks.noTasksMatch') : I18n.t('tasks.noTasks')}</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = tasks.map(task => {
+        const statusColors = {
+          'Todo': 'gray-400',
+          'InProgress': 'primary',
+          'InReview': 'info',
+          'Done': 'success',
+          'Cancelled': 'danger'
+        };
+        const borderColor = statusColors[task.status] || 'gray-400';
+
+        return `
+          <div class="card" style="border-left: 4px solid var(--${borderColor}); margin-bottom: 1rem; cursor: pointer;" onclick="openEditTaskModal(${task.taskId})">
+            <div class="flex-between">
+              <div style="flex: 1;">
+                <div class="flex gap-sm" style="align-items: center; margin-bottom: 0.5rem;">
+                  <h4 style="margin: 0; font-size: 1rem;">${Utils.escapeHtml(task.title)}</h4>
+                  <span class="badge ${Utils.getStatusBadgeClass(task.status)}">${I18n.translateStatus(task.status)}</span>
+                  <span class="badge ${Utils.getPriorityBadgeClass(task.priority)}">${I18n.translatePriority(task.priority)}</span>
+                </div>
+                
+                ${task.description ? `
+                  <p style="font-size: 0.875rem; color: var(--gray-600); margin-bottom: 0.5rem;">
+                    ${Utils.escapeHtml(task.description)}
+                  </p>
+                ` : ''}
+                
+                <div style="font-size: 0.75rem; color: var(--gray-500);">
+                  ${task.assigneeName ? `<span>👤 ${Utils.escapeHtml(task.assigneeName)} • </span>` : ''}
+                  ${task.assignedTeamName ? `<span>👥 ${Utils.escapeHtml(task.assignedTeamName)} • </span>` : ''}
+                  ${task.dueDate ? `<span>📅 Due: ${Utils.formatDate(task.dueDate)}</span>` : ''}
+                </div>
+              </div>
+              
+              <div style="display: flex; gap: 0.5rem;" onclick="event.stopPropagation();">
+                <button class="btn btn-sm btn-info" onclick="openAssignTaskModal(${task.taskId})" data-i18n="tasks.assign">👤 Assign</button>
+                <button class="btn btn-sm btn-primary" onclick="openEditTaskModal(${task.taskId})" data-i18n="common.edit">✏️ Edit</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteTask(${task.taskId})" data-i18n="common.delete">🗑️ Delete</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      I18n.applyTranslations();
+    }
+
+    // Open create task modal
+    async function openCreateTaskModal() {
+      // Filter members (exclude Viewer role, they can't be assigned tasks)
+      const assignableMembers = projectMembers.filter(m => m.role !== 'Viewer' && m.isActive);
+      
+      // Load teams linked to this project
+      let linkedTeams = [];
+      try {
+        // Get all teams and filter by those linked to this project
+        // For now, we'll get all teams (you can optimize this later with a specific endpoint)
+        const allTeamsResponse = await api.getAllTeams();
+        const allTeams = Array.isArray(allTeamsResponse) ? allTeamsResponse : (allTeamsResponse.data || []);
+        
+        // Filter teams that are linked to this project
+        linkedTeams = allTeams.filter(team => {
+          const linkedProjects = team.linkedProjects || [];
+          return linkedProjects.some(p => p.projectId === projectId);
+        });
+        
+        // If no teams are linked, show all teams (as per requirement)
+        if (linkedTeams.length === 0) {
+          linkedTeams = allTeams;
+        }
+      } catch (error) {
+        console.warn('Failed to load teams:', error);
+        // Continue without teams if API fails
+      }
+      
+      const modalHTML = `
+        <form id="createTaskForm">
+          <div class="form-group">
+            <label class="form-label" data-i18n="tasks.taskTitle">Task Title *</label>
+            <input type="text" id="taskTitle" class="form-input" required>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label" data-i18n="tasks.description">Description</label>
+            <textarea id="taskDescription" class="form-textarea" rows="3"></textarea>
+          </div>
+          
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label class="form-label" data-i18n="tasks.status">Status</label>
+              <select id="taskStatus" class="form-select">
+                <option value="Todo" data-i18n="tasks.todo">Todo</option>
+                <option value="InProgress" data-i18n="tasks.inProgress">In Progress</option>
+                <option value="InReview" data-i18n="tasks.inReview">In Review</option>
+                <option value="Done" data-i18n="tasks.done">Done</option>
+                <option value="Cancelled" data-i18n="tasks.cancelled">Cancelled</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label" data-i18n="tasks.priority">Priority</label>
+              <select id="taskPriority" class="form-select">
+                <option value="Low" data-i18n="tasks.low">Low</option>
+                <option value="Medium" selected data-i18n="tasks.medium">Medium</option>
+                <option value="High" data-i18n="tasks.high">High</option>
+                <option value="Urgent" data-i18n="tasks.urgent">Urgent</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label" data-i18n="tasks.assignTo">Assign To</label>
+            <select id="taskAssignee" class="form-select">
+              <option value="" data-i18n="tasks.unassigned">-- Unassigned --</option>
+              ${assignableMembers.map(member => {
+                // Support both camelCase (actual API response) and PascalCase (fallback)
+                const userObj = member.user || member.User || {};
+                const userFullName = userObj.fullName || userObj.FullName || member.userFullName || 'Unknown';
+                const userEmail = userObj.email || userObj.Email || member.userEmail || '';
+                const userId = member.userId || member.UserId || userObj.userId || userObj.UserId || 0;
+                return `
+                  <option value="${userId}">
+                    ${Utils.escapeHtml(userFullName)}${userEmail ? ` (${Utils.escapeHtml(userEmail)})` : ''}
+                  </option>
+                `;
+              }).join('')}
+            </select>
+            <p class="form-help" data-i18n="tasks.selectMember">Select a project member to assign this task</p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" data-i18n="tasks.assignTeam">Assign Team</label>
+            <select id="taskAssignedTeam" class="form-select">
+              <option value="" data-i18n="tasks.unassigned">-- Unassigned --</option>
+              ${linkedTeams.map(team => `
+                <option value="${team.teamId}">
+                  ${Utils.escapeHtml(team.name)}
+                </option>
+              `).join('')}
+            </select>
+            <p class="form-help" data-i18n="tasks.selectTeam">Select a team to assign this task</p>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label" data-i18n="tasks.dueDate">Due Date</label>
+            <input type="date" id="taskDueDate" class="form-input">
+          </div>
+        </form>
+      `;
+
+      Utils.createModal(I18n.t('tasks.createNewTask'), modalHTML, async () => {
+        await createTask();
+      });
+      I18n.applyTranslations();
+    }
+
+    async function createTask() {
+      const form = document.getElementById('createTaskForm');
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+
+      const assigneeId = document.getElementById('taskAssignee').value;
+      const assignedTeamId = document.getElementById('taskAssignedTeam').value;
+      
+      const data = {
+        title: document.getElementById('taskTitle').value,
+        description: document.getElementById('taskDescription').value || '',
+        status: document.getElementById('taskStatus').value,
+        priority: document.getElementById('taskPriority').value,
+        assigneeId: assigneeId ? parseInt(assigneeId) : null,
+        assignedTeamId: assignedTeamId ? parseInt(assignedTeamId) : null,
+        dueDate: document.getElementById('taskDueDate').value || null
+      };
+
+      try {
+        Utils.showLoading();
+        await api.createTask(projectId, data);
+        Utils.hideLoading();
+        Utils.showAlert(I18n.t('tasks.taskCreated'), 'success');
+        loadProjectData();
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || 'Failed to create task', 'danger');
+        throw error;
+      }
+    }
+
+    async function openEditTaskModal(taskId) {
+      try {
+        Utils.showLoading();
+        const task = await api.getTask(projectId, taskId);
+        
+        // Load teams linked to this project
+        let linkedTeams = [];
+        try {
+          const allTeamsResponse = await api.getAllTeams();
+          const allTeams = Array.isArray(allTeamsResponse) ? allTeamsResponse : (allTeamsResponse.data || []);
+          
+          // Filter teams that are linked to this project
+          linkedTeams = allTeams.filter(team => {
+            const linkedProjects = team.linkedProjects || [];
+            return linkedProjects.some(p => p.projectId === projectId);
+          });
+          
+          // If no teams are linked, show all teams
+          if (linkedTeams.length === 0) {
+            linkedTeams = allTeams;
+          }
+        } catch (error) {
+          console.warn('Failed to load teams:', error);
+        }
+        
+        Utils.hideLoading();
+
+        // Filter members (exclude Viewer role)
+        const assignableMembers = projectMembers.filter(m => m.role !== 'Viewer' && m.isActive);
+
+        const modalHTML = `
+          <form id="editTaskForm">
+            <div class="form-group">
+              <label class="form-label" data-i18n="tasks.taskTitle">Task Title *</label>
+              <input type="text" id="editTaskTitle" class="form-input" value="${Utils.escapeHtml(task.title)}" required>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label" data-i18n="tasks.description">Description</label>
+              <textarea id="editTaskDescription" class="form-textarea" rows="3">${task.description || ''}</textarea>
+            </div>
+            
+            <div class="grid grid-2">
+              <div class="form-group">
+                <label class="form-label" data-i18n="tasks.status">Status</label>
+                <select id="editTaskStatus" class="form-select">
+                  <option value="Todo" ${task.status === 'Todo' ? 'selected' : ''} data-i18n="tasks.todo">Todo</option>
+                  <option value="InProgress" ${task.status === 'InProgress' ? 'selected' : ''} data-i18n="tasks.inProgress">In Progress</option>
+                  <option value="InReview" ${task.status === 'InReview' ? 'selected' : ''} data-i18n="tasks.inReview">In Review</option>
+                  <option value="Done" ${task.status === 'Done' ? 'selected' : ''} data-i18n="tasks.done">Done</option>
+                  <option value="Cancelled" ${task.status === 'Cancelled' ? 'selected' : ''} data-i18n="tasks.cancelled">Cancelled</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label" data-i18n="tasks.priority">Priority</label>
+                <select id="editTaskPriority" class="form-select">
+                  <option value="Low" ${task.priority === 'Low' ? 'selected' : ''} data-i18n="tasks.low">Low</option>
+                  <option value="Medium" ${task.priority === 'Medium' ? 'selected' : ''} data-i18n="tasks.medium">Medium</option>
+                  <option value="High" ${task.priority === 'High' ? 'selected' : ''} data-i18n="tasks.high">High</option>
+                  <option value="Urgent" ${task.priority === 'Urgent' ? 'selected' : ''} data-i18n="tasks.urgent">Urgent</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label" data-i18n="tasks.assignTo">Assign To</label>
+              <select id="editTaskAssignee" class="form-select">
+                <option value="" data-i18n="tasks.unassigned">-- Unassigned --</option>
+                ${assignableMembers.map(member => {
+                  // Support both camelCase (actual API response) and PascalCase (fallback)
+                  const userObj = member.user || member.User || {};
+                  const userFullName = userObj.fullName || userObj.FullName || member.userFullName || 'Unknown';
+                  const userEmail = userObj.email || userObj.Email || member.userEmail || '';
+                  const userId = member.userId || member.UserId || userObj.userId || userObj.UserId || 0;
+                  const taskAssigneeId = task.assigneeId || task.assignee?.userId || task.assignee?.UserId || null;
+                  // Compare as numbers to ensure correct matching
+                  const isSelected = taskAssigneeId !== null && parseInt(taskAssigneeId) === parseInt(userId);
+                  return `
+                    <option value="${userId}" ${isSelected ? 'selected' : ''}>
+                      ${Utils.escapeHtml(userFullName)}${userEmail ? ` (${Utils.escapeHtml(userEmail)})` : ''}
+                    </option>
+                  `;
+                }).join('')}
+              </select>
+              <p class="form-help" data-i18n="tasks.selectMember">Select a project member to assign this task</p>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" data-i18n="tasks.assignTeam">Assign Team</label>
+              <select id="editTaskAssignedTeam" class="form-select">
+                <option value="" data-i18n="tasks.unassigned">-- Unassigned --</option>
+                ${linkedTeams.map(team => {
+                  const taskAssignedTeamId = task.assignedTeamId || null;
+                  const isSelected = taskAssignedTeamId !== null && parseInt(taskAssignedTeamId) === parseInt(team.teamId);
+                  return `
+                    <option value="${team.teamId}" ${isSelected ? 'selected' : ''}>
+                      ${Utils.escapeHtml(team.name)}
+                    </option>
+                  `;
+                }).join('')}
+              </select>
+              <p class="form-help" data-i18n="tasks.selectTeam">Select a team to assign this task</p>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label" data-i18n="tasks.dueDate">Due Date</label>
+              <input type="date" id="editTaskDueDate" class="form-input" value="${Utils.formatDateForInput(task.dueDate)}">
+            </div>
+            
+            <!-- Attachments Section -->
+            <div class="form-group" style="border-top: 1px solid var(--gray-200); padding-top: 1.5rem; margin-top: 1rem;">
+              <div class="flex-between" style="margin-bottom: 1rem;">
+                <label class="form-label" style="margin: 0;">📎 Attachments</label>
+                <label for="attachmentFileInput_${taskId}" class="btn btn-sm btn-primary" style="cursor: pointer; margin: 0;">
+                  + Upload File
+                </label>
+                <input type="file" id="attachmentFileInput_${taskId}" style="display: none;" accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.zip,.txt">
+              </div>
+              <p class="form-help" style="margin-bottom: 1rem;">
+                Allowed: PDF, DOC, DOCX, XLS, XLSX, PNG, JPG, JPEG, GIF, ZIP, TXT (Max 10MB)
+              </p>
+              <div id="attachmentsList" style="min-height: 50px;">
+                <div class="text-center" style="padding: 1rem; color: var(--gray-500);">
+                  <div class="loading"></div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Comments Section -->
+            <div class="form-group" style="border-top: 1px solid var(--gray-200); padding-top: 1.5rem; margin-top: 1rem;">
+              <label class="form-label" style="margin-bottom: 1rem;" data-i18n="comments.title">💬 Comments</label>
+              
+              <!-- Comments List -->
+              <div id="commentsList_${taskId}" style="max-height: 300px; overflow-y: auto; margin-bottom: 1rem; padding: 0.5rem; background: var(--gray-50); border-radius: 0.5rem;">
+                <div class="text-center" style="padding: 1rem; color: var(--gray-500);">
+                  <div class="loading"></div>
+                </div>
+              </div>
+              
+              <!-- Add Comment Input -->
+              <div style="display: flex; gap: 0.5rem; align-items: flex-start;">
+                <div style="flex: 1;">
+                  <textarea 
+                    id="newCommentInput_${taskId}" 
+                    class="form-textarea" 
+                    rows="2" 
+                    data-i18n-placeholder="comments.writeComment"
+                    placeholder="Write a comment... (Ctrl+Enter to submit)"
+                    style="resize: vertical; min-height: 60px;"
+                    onkeydown="if(event.ctrlKey && event.key === 'Enter') { addComment(${taskId}); }"
+                  ></textarea>
+                </div>
+                <button 
+                  class="btn btn-primary" 
+                  onclick="addComment(${taskId})"
+                  style="align-self: flex-end;"
+                  data-i18n="comments.post"
+                >
+                  Post
+                </button>
+              </div>
+            </div>
+            
+            <!-- Activity History Section -->
+            <div class="form-group" style="border-top: 1px solid var(--gray-200); padding-top: 1.5rem; margin-top: 1rem;">
+              <label class="form-label" style="margin-bottom: 1rem;" data-i18n="activity.history">📜 Activity History</label>
+              
+              <!-- Activity List -->
+              <div id="activityList_${taskId}" style="max-height: 300px; overflow-y: auto; padding: 0.5rem; background: var(--gray-50); border-radius: 0.5rem;">
+                <div class="text-center" style="padding: 1rem; color: var(--gray-500);">
+                  <div class="loading"></div>
+                </div>
+              </div>
+            </div>
+          </form>
+        `;
+
+        Utils.createModal(I18n.t('tasks.editTask'), modalHTML, async () => {
+          await updateTask(taskId);
+        });
+        I18n.applyTranslations();
+        
+        // Add event listener for file upload after modal is created
+        const fileInput = document.getElementById(`attachmentFileInput_${taskId}`);
+        if (fileInput) {
+          fileInput.addEventListener('change', async (e) => {
+            if (e.target.files && e.target.files.length > 0) {
+              await handleAttachmentUpload(taskId);
+            }
+          });
+        }
+        
+        // Load attachments after modal is created
+        await loadAttachments(taskId);
+        
+        // Load comments after modal is created
+        await loadTaskComments(taskId);
+        
+        // Load activity history after modal is created
+        await loadTaskHistory(taskId);
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || 'Failed to load task', 'danger');
+      }
+    }
+
+    // Open assign task modal (quick assign)
+    async function openAssignTaskModal(taskId) {
+      try {
+        Utils.showLoading();
+        const task = await api.getTask(projectId, taskId);
+        Utils.hideLoading();
+
+        // Filter members (exclude Viewer role)
+        const assignableMembers = projectMembers.filter(m => {
+          const role = m.role || m.Role || '';
+          const isActive = m.isActive !== undefined ? m.isActive : (m.IsActive !== undefined ? m.IsActive : true);
+          return role !== 'Viewer' && isActive;
+        });
+
+        const modalHTML = `
+          <form id="assignTaskForm">
+            <div class="form-group">
+              <label class="form-label">Task</label>
+              <input type="text" class="form-input" value="${Utils.escapeHtml(task.title)}" disabled>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Assign To *</label>
+              <select id="assignTaskAssignee" class="form-select" required>
+                <option value="">-- Unassigned --</option>
+                ${assignableMembers.map(member => {
+                  // Support both camelCase (actual API response) and PascalCase (fallback)
+                  const userObj = member.user || member.User || {};
+                  const userFullName = userObj.fullName || userObj.FullName || member.userFullName || 'Unknown';
+                  const userEmail = userObj.email || userObj.Email || member.userEmail || '';
+                  const userId = member.userId || member.UserId || userObj.userId || userObj.UserId || 0;
+                  const taskAssigneeId = task.assigneeId || task.assignee?.userId || task.assignee?.UserId || null;
+                  // Compare as numbers to ensure correct matching
+                  const isSelected = taskAssigneeId !== null && parseInt(taskAssigneeId) === parseInt(userId);
+                  return `
+                    <option value="${userId}" ${isSelected ? 'selected' : ''}>
+                      ${Utils.escapeHtml(userFullName)}${userEmail ? ` (${Utils.escapeHtml(userEmail)})` : ''}
+                    </option>
+                  `;
+                }).join('')}
+              </select>
+              <p class="form-help">Select a project member to assign this task</p>
+            </div>
+          </form>
+        `;
+
+        Utils.createModal('Assign Task', modalHTML, async () => {
+          await assignTask(taskId);
+        });
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || 'Failed to load task', 'danger');
+      }
+    }
+
+    async function assignTask(taskId) {
+      const form = document.getElementById('assignTaskForm');
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+
+      try {
+        Utils.showLoading();
+        const task = await api.getTask(projectId, taskId);
+        const assigneeId = document.getElementById('assignTaskAssignee').value;
+        
+        const data = {
+          title: task.title,
+          description: task.description || '',
+          status: task.status,
+          priority: task.priority,
+          assigneeId: assigneeId ? parseInt(assigneeId) : null,
+          dueDate: task.dueDate || null
+        };
+
+        await api.updateTask(projectId, taskId, data);
+        Utils.hideLoading();
+        Utils.showAlert('Task assigned successfully!', 'success');
+        loadProjectData();
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || 'Failed to assign task', 'danger');
+        throw error;
+      }
+    }
+
+    async function updateTask(taskId) {
+      const form = document.getElementById('editTaskForm');
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+
+      const assigneeId = document.getElementById('editTaskAssignee').value;
+      const assignedTeamId = document.getElementById('editTaskAssignedTeam').value;
+      
+      const data = {
+        title: document.getElementById('editTaskTitle').value,
+        description: document.getElementById('editTaskDescription').value || '',
+        status: document.getElementById('editTaskStatus').value,
+        priority: document.getElementById('editTaskPriority').value,
+        assigneeId: assigneeId ? parseInt(assigneeId) : null,
+        assignedTeamId: assignedTeamId ? parseInt(assignedTeamId) : null,
+        dueDate: document.getElementById('editTaskDueDate').value || null
+      };
+
+      try {
+        Utils.showLoading();
+        await api.updateTask(projectId, taskId, data);
+        Utils.hideLoading();
+        Utils.showAlert(I18n.t('tasks.taskUpdated'), 'success');
+        loadProjectData();
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || 'Failed to update task', 'danger');
+        throw error;
+      }
+    }
+
+    async function deleteTask(taskId) {
+      if (!await Utils.confirm(I18n.t('tasks.deleteTaskConfirm'))) {
+        return;
+      }
+
+      try {
+        Utils.showLoading();
+        await api.deleteTask(projectId, taskId);
+        Utils.hideLoading();
+        Utils.showAlert(I18n.t('tasks.taskDeleted'), 'success');
+        loadProjectData();
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || 'Failed to delete task', 'danger');
+      }
+    }
+
+    // ==================== ATTACHMENT FUNCTIONS ====================
+    
+    async function loadAttachments(taskId) {
+      const container = document.getElementById('attachmentsList');
+      if (!container) return;
+      
+      try {
+        const response = await api.getAttachments(projectId, taskId);
+        const attachments = Array.isArray(response) ? response : (response.data || []);
+        
+        if (attachments.length === 0) {
+          container.innerHTML = `
+            <div class="text-center" style="padding: 1rem; color: var(--gray-500);">
+              No attachments yet. Upload a file to get started.
+            </div>
+          `;
+          return;
+        }
+        
+        container.innerHTML = attachments.map(attachment => {
+          const fileSize = formatFileSize(attachment.fileSize || attachment.FileSize || 0);
+          const fileName = attachment.fileName || attachment.FileName || 'Unknown';
+          const uploadedAt = attachment.uploadedAt || attachment.UploadedAt || '';
+          const uploadedBy = attachment.uploadedBy || attachment.UploadedBy || {};
+          const uploaderName = uploadedBy.fullName || uploadedBy.FullName || 'Unknown';
+          const attachmentId = attachment.attachmentId || attachment.AttachmentId || 0;
+          
+          return `
+            <div class="card" style="padding: 0.75rem; margin-bottom: 0.5rem; border: 1px solid var(--gray-200);">
+              <div class="flex-between" style="align-items: center;">
+                <div style="flex: 1;">
+                  <div style="font-weight: 500; margin-bottom: 0.25rem;">📎 ${Utils.escapeHtml(fileName)}</div>
+                  <div style="font-size: 0.75rem; color: var(--gray-500);">
+                    ${fileSize} • Uploaded by ${Utils.escapeHtml(uploaderName)} • ${Utils.formatDate(uploadedAt)}
+                  </div>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                  <button 
+                    class="btn btn-sm btn-primary" 
+                    onclick="downloadAttachment(${taskId}, ${attachmentId})"
+                    title="Download"
+                  >
+                    ⬇️ Download
+                  </button>
+                  <button 
+                    class="btn btn-sm btn-danger" 
+                    onclick="deleteAttachment(${taskId}, ${attachmentId})"
+                    title="Delete"
+                  >
+                    🗑️ Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (error) {
+        console.error('Failed to load attachments:', error);
+        container.innerHTML = `
+          <div class="text-center" style="padding: 1rem; color: var(--danger);">
+            Failed to load attachments: ${error.message}
+          </div>
+        `;
+      }
+    }
+    
+    async function handleAttachmentUpload(taskId) {
+      const fileInput = document.getElementById(`attachmentFileInput_${taskId}`);
+      if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        return;
+      }
+      
+      const file = fileInput.files[0];
+      
+      // Validate file type
+      const allowedExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.png', '.jpg', '.jpeg', '.gif', '.zip', '.txt'];
+      const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+      if (!allowedExtensions.includes(fileExtension)) {
+        Utils.showAlert(`File type not allowed. Allowed types: ${allowedExtensions.join(', ')}`, 'danger');
+        fileInput.value = '';
+        return;
+      }
+      
+      // Validate file size (10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        Utils.showAlert(`File size exceeds maximum allowed size of 10MB`, 'danger');
+        fileInput.value = '';
+        return;
+      }
+      
+      try {
+        Utils.showLoading();
+        await api.uploadAttachment(projectId, taskId, file);
+        Utils.hideLoading();
+        Utils.showAlert('File uploaded successfully!', 'success');
+        
+        // Clear file input
+        fileInput.value = '';
+        
+        // Reload attachments list
+        await loadAttachments(taskId);
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || 'Failed to upload file', 'danger');
+        fileInput.value = '';
+      }
+    }
+    
+    async function downloadAttachment(taskId, attachmentId) {
+      try {
+        api.downloadAttachment(projectId, taskId, attachmentId);
+      } catch (error) {
+        Utils.showAlert(error.message || 'Failed to download file', 'danger');
+      }
+    }
+    
+    async function deleteAttachment(taskId, attachmentId) {
+      if (!await Utils.confirm('Are you sure you want to delete this attachment?')) {
+        return;
+      }
+      
+      try {
+        Utils.showLoading();
+        await api.deleteAttachment(projectId, taskId, attachmentId);
+        Utils.hideLoading();
+        Utils.showAlert('Attachment deleted successfully!', 'success');
+        
+        // Reload attachments list
+        await loadAttachments(taskId);
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || 'Failed to delete attachment', 'danger');
+      }
+    }
+    
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
+
+    // ==================== COMMENT FUNCTIONS ====================
+    
+    async function loadTaskComments(taskId) {
+      const container = document.getElementById(`commentsList_${taskId}`);
+      if (!container) return;
+      
+      try {
+        const response = await api.getTaskComments(projectId, taskId);
+        const comments = Array.isArray(response) ? response : (response.data || []);
+        
+        if (comments.length === 0) {
+          container.innerHTML = `
+            <div class="text-center" style="padding: 1rem; color: var(--gray-500);" data-i18n="comments.noComments">
+              No comments yet. Be the first to comment!
+            </div>
+          `;
+          I18n.applyTranslations();
+          return;
+        }
+        
+        const currentUser = Auth.getCurrentUser();
+        const currentUserId = currentUser.userId || currentUser.UserId || 0;
+        
+        container.innerHTML = comments.map(comment => {
+          const commentId = comment.commentId || comment.CommentId || 0;
+          const content = comment.content || comment.Content || '';
+          const createdAt = comment.createdAt || comment.CreatedAt || '';
+          // Get user info from CommentDto (userFullName, userAvatarUrl, userId)
+          const userName = comment.userFullName || comment.UserFullName || 'Unknown';
+          const userAvatar = comment.userAvatarUrl || comment.UserAvatarUrl || '';
+          const userId = comment.userId || comment.UserId || 0;
+          const isOwner = parseInt(currentUserId) === parseInt(userId);
+          
+          // Get user initials for avatar fallback
+          const userInitials = Utils.getUserInitials(userName);
+          
+          return `
+            <div class="card" style="padding: 0.75rem; margin-bottom: 0.75rem; border: 1px solid var(--gray-200); background: white;">
+              <div class="flex-between" style="align-items: flex-start;">
+                <div style="flex: 1; display: flex; gap: 0.75rem;">
+                  <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0; overflow: hidden;">
+                    ${userAvatar ? `<img src="${Utils.escapeHtml(userAvatar)}" alt="${Utils.escapeHtml(userName)}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">` : userInitials}
+                  </div>
+                  <div style="flex: 1;">
+                    <div style="font-weight: 500; margin-bottom: 0.25rem; color: var(--gray-800);">
+                      ${Utils.escapeHtml(userName)}
+                    </div>
+                    <div style="font-size: 0.875rem; color: var(--gray-600); margin-bottom: 0.5rem; white-space: pre-wrap; word-wrap: break-word;">
+                      ${Utils.escapeHtml(content)}
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--gray-500);">
+                      ${Utils.formatDate(createdAt)}
+                    </div>
+                  </div>
+                </div>
+                ${isOwner ? `
+                  <div style="display: flex; gap: 0.25rem;">
+                    <button 
+                      class="btn btn-sm btn-secondary" 
+                      onclick="editComment(${taskId}, ${commentId}, ${JSON.stringify(content)})"
+                      title="Edit"
+                      style="padding: 0.25rem 0.5rem; font-size: 0.75rem;"
+                    >
+                      ✏️
+                    </button>
+                    <button 
+                      class="btn btn-sm btn-danger" 
+                      onclick="deleteComment(${taskId}, ${commentId})"
+                      title="Delete"
+                      style="padding: 0.25rem 0.5rem; font-size: 0.75rem;"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+        I18n.applyTranslations();
+      } catch (error) {
+        console.error('Failed to load comments:', error);
+        container.innerHTML = `
+          <div class="text-center" style="padding: 1rem; color: var(--danger);">
+            ${I18n.t('comments.failedToLoad')}: ${error.message}
+          </div>
+        `;
+      }
+    }
+    
+    async function addComment(taskId) {
+      const input = document.getElementById(`newCommentInput_${taskId}`);
+      if (!input) return;
+      
+      const content = input.value.trim();
+      if (!content) {
+        Utils.showAlert(I18n.t('comments.enterComment'), 'warning');
+        return;
+      }
+      
+      try {
+        Utils.showLoading();
+        await api.addComment(projectId, taskId, content);
+        Utils.hideLoading();
+        Utils.showAlert(I18n.t('comments.commentAdded'), 'success');
+        
+        // Clear input
+        input.value = '';
+        
+        // Reload comments
+        await loadTaskComments(taskId);
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || I18n.t('comments.failedToAdd'), 'danger');
+      }
+    }
+    
+    async function editComment(taskId, commentId, currentContent) {
+      const modalHTML = `
+        <form id="editCommentForm">
+          <div class="form-group">
+            <label class="form-label" data-i18n="comments.editComment">Edit Comment</label>
+            <textarea id="editCommentContent" class="form-textarea" rows="4" required>${Utils.escapeHtml(currentContent)}</textarea>
+          </div>
+        </form>
+      `;
+      
+      Utils.createModal(I18n.t('comments.editComment'), modalHTML, async () => {
+        const form = document.getElementById('editCommentForm');
+        if (!form.checkValidity()) {
+          form.reportValidity();
+          return;
+        }
+        
+        const newContent = document.getElementById('editCommentContent').value.trim();
+        if (newContent === currentContent.trim()) {
+          return; // No changes
+        }
+        
+        if (!newContent) {
+          Utils.showAlert(I18n.t('comments.commentEmpty'), 'warning');
+          throw new Error(I18n.t('comments.commentEmpty'));
+        }
+        
+        try {
+          Utils.showLoading();
+          await api.updateComment(projectId, taskId, commentId, newContent);
+          Utils.hideLoading();
+          Utils.showAlert(I18n.t('comments.commentUpdated'), 'success');
+          
+          // Reload comments
+          await loadTaskComments(taskId);
+        } catch (error) {
+          Utils.hideLoading();
+          Utils.showAlert(error.message || I18n.t('comments.failedToUpdate'), 'danger');
+          throw error;
+        }
+      });
+      I18n.applyTranslations();
+    }
+    
+    async function deleteComment(taskId, commentId) {
+      if (!await Utils.confirm(I18n.t('comments.deleteConfirm'))) {
+        return;
+      }
+      
+      try {
+        Utils.showLoading();
+        await api.deleteComment(projectId, taskId, commentId);
+        Utils.hideLoading();
+        Utils.showAlert(I18n.t('comments.commentDeleted'), 'success');
+        
+        // Reload comments
+        await loadTaskComments(taskId);
+      } catch (error) {
+        Utils.hideLoading();
+        Utils.showAlert(error.message || I18n.t('comments.failedToDelete'), 'danger');
+      }
+    }
+
+    // ==================== ACTIVITY HISTORY FUNCTIONS ====================
+    
+    async function loadTaskHistory(taskId) {
+      const container = document.getElementById(`activityList_${taskId}`);
+      if (!container) return;
+      
+      try {
+        const response = await api.getTaskActivities(projectId, taskId);
+        const activities = Array.isArray(response) ? response : (response.data || []);
+        
+        if (activities.length === 0) {
+          container.innerHTML = `
+            <div class="text-center" style="padding: 1rem; color: var(--gray-500);" data-i18n="activity.noActivities">
+              No activity history yet.
+            </div>
+          `;
+          I18n.applyTranslations();
+          return;
+        }
+        
+        container.innerHTML = activities.map(activity => {
+          const userName = activity.userFullName || activity.UserFullName || 'Unknown';
+          const userAvatar = activity.userAvatarUrl || activity.UserAvatarUrl || '';
+          const action = activity.action || activity.Action || '';
+          const description = activity.description || activity.Description || '';
+          const createdAt = activity.createdAt || activity.CreatedAt || '';
+          const oldValue = activity.oldValue || activity.OldValue;
+          const newValue = activity.newValue || activity.NewValue;
+          
+          // Get user initials for avatar fallback
+          const userInitials = Utils.getUserInitials(userName);
+          
+          // Format activity description
+          let activityText = description;
+          if (!activityText || activityText.trim() === '') {
+            // Generate description from action and values
+            if (action === 'Created') {
+              activityText = I18n.t('activity.createdTask', `created task`);
+            } else if (action === 'Updated') {
+              // Try to parse and format changes
+              const changes = [];
+              if (oldValue && newValue) {
+                try {
+                  const old = JSON.parse(oldValue);
+                  const newVal = JSON.parse(newValue);
+                  
+                  if (old.Status && newVal.Status && old.Status !== newVal.Status) {
+                    const statusText = I18n.t('activity.changedStatus', `changed status from ${old.Status} to ${newVal.Status}`)
+                      .replace('{old}', old.Status)
+                      .replace('{new}', newVal.Status);
+                    changes.push(statusText);
+                  }
+                  if (old.Priority && newVal.Priority && old.Priority !== newVal.Priority) {
+                    const priorityText = I18n.t('activity.changedPriority', `changed priority from ${old.Priority} to ${newVal.Priority}`)
+                      .replace('{old}', old.Priority)
+                      .replace('{new}', newVal.Priority);
+                    changes.push(priorityText);
+                  }
+                  if (old.Title && newVal.Title && old.Title !== newVal.Title) {
+                    changes.push(I18n.t('activity.changedTitle', `changed title`));
+                  }
+                  if (old.AssigneeId !== undefined && newVal.AssigneeId !== undefined && old.AssigneeId !== newVal.AssigneeId) {
+                    changes.push(I18n.t('activity.changedAssignee', `changed assignee`));
+                  }
+                } catch (e) {
+                  console.warn('Failed to parse activity values:', e);
+                }
+              }
+              
+              if (changes.length > 0) {
+                activityText = I18n.t('activity.updatedTask', `updated task`) + ': ' + changes.join(', ');
+              } else {
+                activityText = I18n.t('activity.updatedTask', `updated task`);
+              }
+            } else if (action === 'Deleted') {
+              activityText = I18n.t('activity.deletedTask', `deleted task`);
+            } else {
+              activityText = `${action} task`;
+            }
+          }
+          
+          return `
+            <div style="padding: 0.75rem; margin-bottom: 0.75rem; border-left: 3px solid var(--primary); background: white; border-radius: 0.25rem;">
+              <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
+                <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; flex-shrink: 0; font-size: 0.75rem; overflow: hidden;">
+                  ${userAvatar ? `<img src="${Utils.escapeHtml(userAvatar)}" alt="${Utils.escapeHtml(userName)}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">` : userInitials}
+                </div>
+                <div style="flex: 1;">
+                  <div style="font-size: 0.875rem; color: var(--gray-800); margin-bottom: 0.25rem;">
+                    <strong>${Utils.escapeHtml(userName)}</strong> ${activityText}
+                  </div>
+                  <div style="font-size: 0.75rem; color: var(--gray-500);">
+                    ${Utils.formatDate(createdAt)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+        I18n.applyTranslations();
+      } catch (error) {
+        console.error('Failed to load activity history:', error);
+        container.innerHTML = `
+          <div class="text-center" style="padding: 1rem; color: var(--danger);">
+            ${I18n.t('activity.failedToLoad', 'Failed to load activity history')}: ${error.message}
+          </div>
+        `;
+      }
+    }
+
+    // Load data on page load
+    loadProjectData();
+  </script>
+</body>
+</html>
+
