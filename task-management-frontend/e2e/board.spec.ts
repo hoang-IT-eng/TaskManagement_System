@@ -46,6 +46,19 @@ test('edit a task in the drawer and comment on it', async ({ page }) => {
   await expect(page.getByTestId('card-ATL-3').getByRole('img', { name: 'Urgent priority' })).toBeVisible();
 });
 
+test('leading icons never overlap input text', async ({ page }) => {
+  for (const url of ['/projects', '/projects/1']) {
+    await page.goto(url);
+    const inputs = page.locator('.search input');
+    await expect(inputs.first()).toBeVisible();
+    const gaps = await inputs.evaluateAll((els) => els.map((i) => {
+      const icon = i.parentElement!.querySelector('svg')!.getBoundingClientRect();
+      return parseFloat(getComputedStyle(i).paddingLeft) - (icon.right - i.getBoundingClientRect().left);
+    }));
+    for (const g of gaps) expect(g).toBeGreaterThanOrEqual(4);
+  }
+});
+
 test('filters live in the URL', async ({ page }) => {
   await page.getByLabel('Priority', { exact: true }).selectOption('Urgent');
   await expect(page).toHaveURL(/priority=Urgent/);
