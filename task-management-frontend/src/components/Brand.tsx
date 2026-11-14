@@ -1,6 +1,8 @@
 import type { Priority } from '../api/types';
 import { PRIORITY_LEVEL } from '../lib/meta';
 
+export const BRAND = 'Task Management';
+
 /** Wordmark: three offset strata, the product's one recurring motif. */
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
@@ -11,7 +13,7 @@ export function Logo({ compact = false }: { compact?: boolean }) {
         <rect x="9" y="14" width="16" height="4" rx="2" fill="#5E8C74" />
         <rect x="11" y="20" width="14" height="4" rx="2" fill="#F2F4F2" />
       </svg>
-      {!compact && <span className="logo-word">Layers</span>}
+      {!compact && <span className="logo-word">{BRAND}</span>}
     </span>
   );
 }
@@ -41,7 +43,7 @@ export function Avatar({ name, initials, size = 24, ring = false }: { name: stri
   for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360;
   return (
     <span className={`avatar${ring ? ' ring' : ''}`} title={name} aria-label={name}
-      style={{ width: size, height: size, fontSize: size * 0.4, background: `hsl(${h} 22% 86%)`, color: `hsl(${h} 30% 26%)` }}>
+      style={{ width: size, height: size, fontSize: Math.max(11, size * 0.4), background: `hsl(${h} 22% 86%)`, color: `hsl(${h} 30% 26%)` }}>
       {initials}
     </span>
   );

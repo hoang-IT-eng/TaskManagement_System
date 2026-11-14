@@ -115,7 +115,7 @@ export function TaskDetail({ task, projectId, members, labels, editable, onClose
               {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
             </select></dd>
           <dt>Assignee</dt>
-          <dd className="with-glyph">{task.assignee && <Avatar name={task.assignee.fullName} initials={task.assignee.initials} size={20} />}
+          <dd className="with-glyph">{task.assignee && <Avatar name={task.assignee.fullName} initials={task.assignee.initials} size={24} />}
             <select value={task.assignee?.id ?? ''} disabled={!editable} aria-label="Assignee"
               onChange={(e) => save(e.target.value ? { assigneeId: Number(e.target.value) } : { clearAssignee: true })}>
               <option value="">Unassigned</option>
@@ -181,7 +181,7 @@ function Comments({ projectId, taskId, canComment }: { projectId: number; taskId
       <ul>
         {q.data?.map((c) => (
           <li key={c.id} className="comment">
-            <Avatar name={c.author.fullName} initials={c.author.initials} size={26} />
+            <Avatar name={c.author.fullName} initials={c.author.initials} size={28} />
             <div>
               <div className="comment-head"><strong>{c.author.fullName}</strong><time className="muted small" dateTime={c.createdAt}>{timeAgo(c.createdAt)}{c.edited && ' · edited'}</time>
                 {c.author.id === user?.id && <button className="link-btn" onClick={() => del.mutate(c.id)}>Delete</button>}</div>

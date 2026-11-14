@@ -41,7 +41,7 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard({ ta
         <span className="card-foot-end">
           {task.commentCount > 0 && <span className="card-comments" aria-label={`${task.commentCount} comments`}><Icon name="comment" size={13} />{task.commentCount}</span>}
           {task.assignee
-            ? <Avatar name={task.assignee.fullName} initials={task.assignee.initials} size={22} />
+            ? <Avatar name={task.assignee.fullName} initials={task.assignee.initials} size={24} />
             : <span className="avatar avatar-empty" title="Unassigned" aria-label="Unassigned" />}
         </span>
       </div>

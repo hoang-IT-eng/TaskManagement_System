@@ -25,7 +25,7 @@ export function AppShell() {
   return (
     <div className="shell">
       <aside className="sidebar">
-        <div className="sidebar-top"><NavLink to="/" aria-label="Layers home"><Logo /></NavLink></div>
+        <div className="sidebar-top"><NavLink to="/" aria-label="Task Management home"><Logo /></NavLink></div>
         <nav className="side-nav" aria-label="Main">
           {NAV.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end} className="side-link">

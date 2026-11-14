@@ -16,7 +16,7 @@ export function TaskRow({ task, href, showProject = false }: { task: Task; href:
         {!showProject && <LabelChips labels={task.labels} max={1} />}
         {showProject && <span className="muted small row-status-label">{STATUS_META[task.status].label}</span>}
         <DueChip task={task} />
-        {task.assignee ? <Avatar name={task.assignee.fullName} initials={task.assignee.initials} size={22} /> : <span className="avatar avatar-empty" aria-label="Unassigned" />}
+        {task.assignee ? <Avatar name={task.assignee.fullName} initials={task.assignee.initials} size={24} /> : <span className="avatar avatar-empty" aria-label="Unassigned" />}
       </span>
     </Link>
   );

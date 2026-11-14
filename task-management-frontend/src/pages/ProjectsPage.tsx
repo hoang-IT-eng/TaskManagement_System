@@ -57,7 +57,7 @@ function ProjectCard({ p }: { p: Project }) {
         <span className="project-key" style={{ background: p.color }}>{p.key}</span>
         <span className="muted small">{p.myRole}</span>
       </div>
-      <h3>{p.name}</h3>
+      <h2>{p.name}</h2>
       <p className="muted clamp-2">{p.description || 'No description yet.'}</p>
       <div className="strata-bar" aria-label={`${p.tasks.open} open, ${p.tasks.done} done`}>
         {p.tasks.total === 0 ? <span className="seg seg-empty" style={{ flex: 1 }} /> : segs.map((s) => s.n > 0 && <span key={s.k} className={`seg tone-${s.k}`} style={{ flex: s.n }} />)}

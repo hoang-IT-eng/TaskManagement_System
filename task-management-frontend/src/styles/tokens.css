@@ -12,7 +12,7 @@
   --sheet-2: #f7f8f6;
   --ink: #17201c;
   --ink-2: #3d4843;
-  --muted: #66716b;
+  --muted: #5d6862;    /* ≥4.5:1 on fog, wells and sheets */
   --rule: #d9dfdb;
   --rule-2: #e7ebe8;
 

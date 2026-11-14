@@ -19,8 +19,12 @@ test('mobile: tab bar navigation, swipeable board and full-screen task sheet', a
   await page.locator('[data-testid^="card-PLT-"]').first().click();
   const sheet = page.getByRole('dialog', { name: 'Task details' });
   await expect(sheet).toBeVisible();
-  const box = (await sheet.boundingBox())!;
-  expect(Math.round(box.width)).toBe(390);
+  // Full-screen sheet: flush to the edges and no taller than the viewport (regression: scrim padding offset it by 12px).
+  // Polled because the sheet slides up for ~200ms.
+  await expect.poll(async () => {
+    const box = (await sheet.boundingBox())!;
+    return [box.x, box.y, box.width, box.height].map(Math.round);
+  }).toEqual([0, 0, 390, 844]);
 
   await page.getByRole('button', { name: 'Close' }).click();
   await tabs.getByRole('link', { name: 'Inbox' }).click();

@@ -10,8 +10,10 @@ test('drag a card to another column and the move persists', async ({ page }) => 
   const card = page.getByTestId('card-ATL-5');
   const review = page.getByTestId('column-InReview');
   await expect(page.getByTestId('column-Todo').getByTestId('card-ATL-5')).toBeVisible();
+  const saved = page.waitForResponse((r) => r.url().includes('/tasks/5/move'));
   await drag(page, card, review);
-  await expect(review.getByTestId('card-ATL-5')).toBeVisible();
+  await expect(review.getByTestId('card-ATL-5')).toBeVisible(); // optimistic
+  expect((await saved).status()).toBe(200); // the board is optimistic; wait for the save before reloading
 
   await page.reload();
   await expect(page.getByTestId('column-InReview').getByTestId('card-ATL-5')).toBeVisible();
@@ -24,8 +26,10 @@ test('reorder within a column persists', async ({ page }) => {
   const todo = page.getByTestId('column-Todo');
   const keysBefore = await todo.locator('[data-testid^="card-"]').evaluateAll((els) => els.map((e) => e.getAttribute('data-testid')));
   const last = keysBefore.at(-1)!;
+  const saved = page.waitForResponse((r) => r.url().includes('/move'));
   await drag(page, todo.getByTestId(last), todo.getByTestId(keysBefore[0]!));
   await expect(todo.locator('[data-testid^="card-"]').first()).toHaveAttribute('data-testid', last);
+  expect((await saved).status()).toBe(200);
   await page.reload();
   await expect(page.getByTestId('column-Todo').locator('[data-testid^="card-"]').first()).toHaveAttribute('data-testid', last);
 });

@@ -90,8 +90,8 @@ builder.Services.AddHealthChecks().AddDbContextCheck<ApplicationDbContext>("data
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(o =>
 {
-    o.SwaggerDoc("v1", new OpenApiInfo { Title = "Layers API", Version = "v1", Description = "Projects, kanban tasks, comments, activity and notifications." });
-    o.SwaggerDoc("legacy", new OpenApiInfo { Title = "Layers API (legacy)", Version = "legacy", Description = "Pre-v1 endpoints kept for the old vanilla frontend: teams, positions, admin, profile/avatar, attachments." });
+    o.SwaggerDoc("v1", new OpenApiInfo { Title = "Task Management API", Version = "v1", Description = "Projects, kanban tasks, comments, activity and notifications." });
+    o.SwaggerDoc("legacy", new OpenApiInfo { Title = "Task Management API (legacy)", Version = "legacy", Description = "Pre-v1 endpoints kept for the old vanilla frontend: teams, positions, admin, profile/avatar, attachments." });
     var xml = Path.Combine(AppContext.BaseDirectory, "TaskManagement.API.xml");
     if (File.Exists(xml)) o.IncludeXmlComments(xml);
     o.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -123,7 +123,7 @@ app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseSwagger();
 app.UseSwaggerUI(o =>
 {
-    o.SwaggerEndpoint("/swagger/v1/swagger.json", "Layers API v1");
+    o.SwaggerEndpoint("/swagger/v1/swagger.json", "Task Management API v1");
     o.SwaggerEndpoint("/swagger/legacy/swagger.json", "Legacy endpoints");
     o.RoutePrefix = "swagger";
 });

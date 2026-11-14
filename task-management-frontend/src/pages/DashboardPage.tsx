@@ -125,7 +125,7 @@ export function ActivityList({ items }: { items: Activity[] }) {
     <ol className="activity">
       {items.map((a) => (
         <li key={a.id}>
-          <Avatar name={a.actor.fullName} initials={a.actor.initials} size={22} />
+          <Avatar name={a.actor.fullName} initials={a.actor.initials} size={24} />
           <p><strong>{a.actor.fullName}</strong> {a.description ?? a.action}</p>
           <time dateTime={a.createdAt}>{timeAgo(a.createdAt)}</time>
         </li>
