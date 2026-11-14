@@ -35,6 +35,9 @@ builder.Services.AddControllers(o => o.Filters.AddService<ValidationFilter>())
         o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
         o.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
     });
+// Problem responses (including the `current` copy in 409s) are written with the minimal-API JSON options,
+// not MVC's. Keep enums as strings there too so a conflict body has the same shape as a normal response.
+builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 // ---- auth: short-lived JWT access tokens; refresh handled by AuthController + RefreshTokens table
 var jwt = config.GetSection(JwtOptions.Section).Get<JwtOptions>() ?? new JwtOptions();

@@ -60,6 +60,9 @@ public class TaskApiTests(ApiFactory api) : IClassFixture<ApiFactory>
             .Problem(HttpStatusCode.Conflict, "task.version_conflict");
         Assert.Equal("Edited in tab A", conflict.GetProperty("current").GetProperty("title").GetString());
         Assert.Equal(v + 1, conflict.GetProperty("current").GetProperty("version").GetInt32());
+        // Same wire shape as GET: enums as strings (regression: problem bodies used different JSON options).
+        Assert.Equal(JsonValueKind.String, conflict.GetProperty("current").GetProperty("status").ValueKind);
+        Assert.Equal(JsonValueKind.String, conflict.GetProperty("current").GetProperty("priority").ValueKind);
 
         await (await owner.Http.PostAsJsonAsync($"/api/v1/projects/{pid}/tasks/{tid}/move", new { version = v, status = "Done" }))
             .Problem(HttpStatusCode.Conflict, "task.version_conflict");
