@@ -1,0 +1,51 @@
+/*
+ * Layers design tokens.
+ * Direction: "operations notebook" — cool fog paper, ink text, one moss accent.
+ * Status colours are the only saturated hues and always travel with a text label or a count.
+ */
+:root {
+  --font: 'Hanken Grotesk Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --bg: #eef1ee;          /* fog */
+  --bg-sunk: #e4e8e5;     /* column wells */
+  --sheet: #ffffff;
+  --sheet-2: #f7f8f6;
+  --ink: #17201c;
+  --ink-2: #3d4843;
+  --muted: #66716b;
+  --rule: #d9dfdb;
+  --rule-2: #e7ebe8;
+
+  --moss: #2f5d4a;
+  --moss-strong: #234637;
+  --moss-tint: #e1ebe4;
+
+  --tone-todo: #85919a;
+  --tone-progress: #2f6e9e;
+  --tone-review: #b7791f;
+  --tone-done: #3a7b58;
+  --tone-cancelled: #a3a9a6;
+
+  --brick: #b5482f;
+  --brick-tint: #f7e5df;
+  --ochre-ink: #8a5a0f;
+  --ochre-tint: #f6ebd4;
+
+  --r-sm: 6px;
+  --r: 10px;
+  --r-lg: 14px;
+
+  --shadow-1: 0 1px 0 rgb(23 32 28 / 0.04), 0 1px 2px rgb(23 32 28 / 0.06);
+  --shadow-2: 0 2px 4px rgb(23 32 28 / 0.06), 0 8px 24px rgb(23 32 28 / 0.08);
+  --shadow-3: 0 12px 40px rgb(23 32 28 / 0.18), 0 2px 6px rgb(23 32 28 / 0.08);
+
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --sidebar: 248px;
+  --tabbar: 62px;
+}
+
+.tone-todo { --tone: var(--tone-todo); }
+.tone-progress { --tone: var(--tone-progress); }
+.tone-review { --tone: var(--tone-review); }
+.tone-done { --tone: var(--tone-done); }
+.tone-cancelled { --tone: var(--tone-cancelled); }

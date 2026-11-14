@@ -105,7 +105,7 @@ public sealed partial class ProjectService(ApplicationDbContext db, ProjectAcces
 
     private IQueryable<ProjectDto> Project(IQueryable<Project> q, int userId)
     {
-        var today = clock.UtcNow.Date;
+        var now = clock.UtcNow; // overdue is instant-based so it agrees with clients in any time zone
         return q.Select(p => new ProjectDto(
             p.ProjectId,
             p.Name,
@@ -121,7 +121,7 @@ public sealed partial class ProjectService(ApplicationDbContext db, ProjectAcces
                 p.Tasks.Count(t => t.IsActive && t.Status == ProjectTaskStatus.InReview),
                 p.Tasks.Count(t => t.IsActive && t.Status == ProjectTaskStatus.Done),
                 p.Tasks.Count(t => t.IsActive && t.Status == ProjectTaskStatus.Cancelled)),
-            p.Tasks.Count(t => t.IsActive && t.DueDate < today && t.Status != ProjectTaskStatus.Done && t.Status != ProjectTaskStatus.Cancelled),
+            p.Tasks.Count(t => t.IsActive && t.DueDate < now && t.Status != ProjectTaskStatus.Done && t.Status != ProjectTaskStatus.Cancelled),
             p.CreatedAt,
             p.UpdatedAt,
             p.Version));

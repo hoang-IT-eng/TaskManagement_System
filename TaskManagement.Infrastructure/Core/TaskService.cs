@@ -366,12 +366,12 @@ public sealed class TaskService(
                 q = q.Where(t => EF.Functions.Like(t.Title, term) || (t.Description != null && EF.Functions.Like(t.Description, term)));
         }
 
-        var today = clock.UtcNow.Date;
+        var now = clock.UtcNow; // instant-based windows: no server-side notion of the caller's day
         q = f.Due?.ToLowerInvariant() switch
         {
-            "overdue" => q.Where(t => t.DueDate < today && t.Status != ProjectTaskStatus.Done && t.Status != ProjectTaskStatus.Cancelled),
-            "today" => q.Where(t => t.DueDate == today),
-            "week" => q.Where(t => t.DueDate >= today && t.DueDate < today.AddDays(7)),
+            "overdue" => q.Where(t => t.DueDate < now && t.Status != ProjectTaskStatus.Done && t.Status != ProjectTaskStatus.Cancelled),
+            "today" => q.Where(t => t.DueDate >= now && t.DueDate < now.AddDays(1)),
+            "week" => q.Where(t => t.DueDate >= now && t.DueDate < now.AddDays(7)),
             "none" => q.Where(t => t.DueDate == null),
             null or "" => q,
             var other => throw new ValidationFailedException("due", $"Unknown due filter '{other}'. Use overdue, today, week or none."),

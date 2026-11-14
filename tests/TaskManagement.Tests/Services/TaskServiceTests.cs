@@ -231,6 +231,26 @@ public class TaskServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Due_windows_are_instant_based_not_utc_calendar_days()
+    {
+        // 22:30 UTC is already the next morning in UTC+7. A task due 10:00 UTC the same day has passed
+        // for everyone, so it must count as overdue even though its UTC calendar date is "today".
+        _db.Clock.UtcNow = new DateTime(2026, 11, 14, 22, 30, 0, DateTimeKind.Utc);
+        var owner = await _db.UserAsync("Owner One");
+        var p = await _db.ProjectAsync(owner);
+        await using var ctx = _db.NewContext();
+        var s = _db.For(ctx);
+        await s.Tasks.CreateAsync(owner.UserId, p, new CreateTaskRequest("Passed earlier today", DueDate: new DateTime(2026, 11, 14, 10, 0, 0, DateTimeKind.Utc), AssigneeId: owner.UserId));
+        await s.Tasks.CreateAsync(owner.UserId, p, new CreateTaskRequest("In 20 hours", DueDate: new DateTime(2026, 11, 15, 18, 30, 0, DateTimeKind.Utc), AssigneeId: owner.UserId));
+
+        Assert.Equal(["Passed earlier today"], (await s.Tasks.ListAsync(owner.UserId, p, new TaskQuery(Due: "overdue"))).Items.Select(t => t.Title));
+        Assert.Equal(["In 20 hours"], (await s.Tasks.ListAsync(owner.UserId, p, new TaskQuery(Due: "today"))).Items.Select(t => t.Title));
+        var d = await s.Dashboard.GetAsync(owner.UserId);
+        Assert.Equal((1, 1), (d.Overdue, d.DueThisWeek));
+        Assert.Equal(1, (await s.Projects.GetAsync(owner.UserId, p)).OverdueCount);
+    }
+
+    [Fact]
     public async Task List_filters_sorts_and_paginates()
     {
         var owner = await _db.UserAsync("Owner One");

@@ -136,7 +136,7 @@ public sealed class DashboardService(ApplicationDbContext db, IClock clock) : ID
     {
         var now = clock.UtcNow;
         var today = now.Date;
-        var weekEnd = today.AddDays(7);
+        var weekEnd = now.AddDays(7);
         var since = today.AddDays(-13);
 
         var projectIds = await db.Projects.AsNoTracking()
@@ -151,8 +151,8 @@ public sealed class DashboardService(ApplicationDbContext db, IClock clock) : ID
         var myStatus = new StatusCounts(C(ProjectTaskStatus.Todo), C(ProjectTaskStatus.InProgress), C(ProjectTaskStatus.InReview), C(ProjectTaskStatus.Done), C(ProjectTaskStatus.Cancelled));
 
         var openMine = mine.Where(t => t.Status == ProjectTaskStatus.Todo || t.Status == ProjectTaskStatus.InProgress || t.Status == ProjectTaskStatus.InReview);
-        var overdue = await openMine.CountAsync(t => t.DueDate < today, ct);
-        var dueWeek = await openMine.CountAsync(t => t.DueDate >= today && t.DueDate < weekEnd, ct);
+        var overdue = await openMine.CountAsync(t => t.DueDate < now, ct);
+        var dueWeek = await openMine.CountAsync(t => t.DueDate >= now && t.DueDate < weekEnd, ct);
         var weekAgo = now.AddDays(-7);
         var completed7 = await mine.CountAsync(t => t.Status == ProjectTaskStatus.Done && t.CompletedAt >= weekAgo, ct);
 
@@ -167,7 +167,7 @@ public sealed class DashboardService(ApplicationDbContext db, IClock clock) : ID
                 p.ProjectId, p.Name, p.Key, p.Color,
                 p.Tasks.Count(t => t.IsActive && t.Status == ProjectTaskStatus.Done),
                 p.Tasks.Count(t => t.IsActive && t.Status != ProjectTaskStatus.Cancelled),
-                p.Tasks.Count(t => t.IsActive && t.DueDate < today && t.Status != ProjectTaskStatus.Done && t.Status != ProjectTaskStatus.Cancelled)))
+                p.Tasks.Count(t => t.IsActive && t.DueDate < now && t.Status != ProjectTaskStatus.Done && t.Status != ProjectTaskStatus.Cancelled)))
             .ToListAsync(ct);
 
         var activity = await db.ActivityLogs.AsNoTracking().Include(a => a.User)
