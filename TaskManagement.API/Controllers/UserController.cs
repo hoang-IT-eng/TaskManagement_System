@@ -7,6 +7,7 @@ using TaskManagement.Application.Interfaces;
 namespace TaskManagement.API.Controllers;
 
 [ApiController]
+[ApiExplorerSettings(GroupName = "legacy")]
 [Route("api/[controller]")]
 [Authorize]
 public class UserController : ControllerBase

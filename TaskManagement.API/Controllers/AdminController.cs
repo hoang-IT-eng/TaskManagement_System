@@ -8,6 +8,7 @@ using System;
 namespace TaskManagement.API.Controllers;
 
 [ApiController]
+[ApiExplorerSettings(GroupName = "legacy")]
 [Route("api/admin")]
 [Authorize(Roles = "Admin")]
 public class AdminController : ControllerBase
