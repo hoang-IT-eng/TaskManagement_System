@@ -11,6 +11,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskManagement.Domain", "Ta
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskManagement.Infrastructure", "TaskManagement.Infrastructure\TaskManagement.Infrastructure.csproj", "{D1BB5F96-A2DE-4150-942E-74669239A12C}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TaskManagement.Tests", "tests\TaskManagement.Tests\TaskManagement.Tests.csproj", "{79EE7B12-B31C-4605-A8C8-419ACCDA583C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -69,8 +73,23 @@ Global
 		{D1BB5F96-A2DE-4150-942E-74669239A12C}.Release|x64.Build.0 = Release|Any CPU
 		{D1BB5F96-A2DE-4150-942E-74669239A12C}.Release|x86.ActiveCfg = Release|Any CPU
 		{D1BB5F96-A2DE-4150-942E-74669239A12C}.Release|x86.Build.0 = Release|Any CPU
+		{79EE7B12-B31C-4605-A8C8-419ACCDA583C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{79EE7B12-B31C-4605-A8C8-419ACCDA583C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{79EE7B12-B31C-4605-A8C8-419ACCDA583C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{79EE7B12-B31C-4605-A8C8-419ACCDA583C}.Debug|x64.Build.0 = Debug|Any CPU
+		{79EE7B12-B31C-4605-A8C8-419ACCDA583C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{79EE7B12-B31C-4605-A8C8-419ACCDA583C}.Debug|x86.Build.0 = Debug|Any CPU
+		{79EE7B12-B31C-4605-A8C8-419ACCDA583C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{79EE7B12-B31C-4605-A8C8-419ACCDA583C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{79EE7B12-B31C-4605-A8C8-419ACCDA583C}.Release|x64.ActiveCfg = Release|Any CPU
+		{79EE7B12-B31C-4605-A8C8-419ACCDA583C}.Release|x64.Build.0 = Release|Any CPU
+		{79EE7B12-B31C-4605-A8C8-419ACCDA583C}.Release|x86.ActiveCfg = Release|Any CPU
+		{79EE7B12-B31C-4605-A8C8-419ACCDA583C}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{79EE7B12-B31C-4605-A8C8-419ACCDA583C} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

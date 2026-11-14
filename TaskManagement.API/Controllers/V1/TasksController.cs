@@ -10,7 +10,6 @@ namespace TaskManagement.API.Controllers.V1;
 [ApiController]
 [Authorize]
 [ApiExplorerSettings(GroupName = "v1")]
-[Produces("application/json")]
 [Route("api/v1/projects/{projectId:int}")]
 public sealed class TasksController(ITaskService tasks, ICommentService comments, IActivityService activity) : ControllerBase
 {
@@ -83,7 +82,6 @@ public sealed class TasksController(ITaskService tasks, ICommentService comments
 [ApiController]
 [Authorize]
 [ApiExplorerSettings(GroupName = "v1")]
-[Produces("application/json")]
 [Route("api/v1")]
 public sealed class InboxController(INotificationService notifications, IDashboardService dashboard) : ControllerBase
 {

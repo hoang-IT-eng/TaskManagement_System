@@ -282,9 +282,9 @@ public sealed class LabelService(ApplicationDbContext db, ProjectAccess access) 
         var label = await Find(projectId, labelId, ct);
         await db.InTransactionAsync(async c =>
         {
+            // Bulk statements, not tracked deletes: detaching the label from N tasks is one DELETE.
             await db.TaskLabels.Where(tl => tl.LabelId == labelId).ExecuteDeleteAsync(c);
-            db.Labels.Remove(label);
-            await db.SaveChangesAsync(c);
+            await db.Labels.Where(l => l.LabelId == label.LabelId).ExecuteDeleteAsync(c);
         }, ct);
     }
 

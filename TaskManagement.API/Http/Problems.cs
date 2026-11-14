@@ -111,7 +111,7 @@ public static class ProblemSetup
                 };
         });
         services.AddExceptionHandler<AppExceptionHandler>();
-        services.Configure<ApiBehaviorOptions>(o =>
+        services.PostConfigure<ApiBehaviorOptions>(o =>
         {
             // Malformed JSON / wrong types (model binding) use the same contract as validation errors.
             o.InvalidModelStateResponseFactory = ctx =>

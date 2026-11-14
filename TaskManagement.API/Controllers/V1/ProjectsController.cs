@@ -10,7 +10,6 @@ namespace TaskManagement.API.Controllers.V1;
 [ApiController]
 [Authorize]
 [ApiExplorerSettings(GroupName = "v1")]
-[Produces("application/json")]
 [Route("api/v1")]
 public sealed class ProjectsController(IProjectService projects, IMemberService members, ILabelService labels, IActivityService activity, IUserDirectory users) : ControllerBase
 {

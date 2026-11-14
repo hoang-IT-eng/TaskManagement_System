@@ -37,6 +37,7 @@ public sealed class AuthService(
             LastLoginAt = clock.UtcNow,
         };
         db.Users.Add(user);
+        await db.SaveChangesAsync(ct); // need the generated id before minting the access token
         var session = Issue(user, ip);
         await db.SaveChangesAsync(ct);
         log.LogInformation("User {UserId} registered", user.UserId);
@@ -81,6 +82,7 @@ public sealed class AuthService(
                         .Where(t => t.UserId == stored.UserId && t.RevokedAt == null)
                         .ExecuteUpdateAsync(s => s.SetProperty(t => t.RevokedAt, now), c);
                 }, ct);
+                db.ChangeTracker.Clear(); // tracked token rows are now stale
                 log.LogWarning("Refresh token reuse detected for user {UserId}; all sessions revoked", stored.UserId);
             }
             throw InvalidRefresh;

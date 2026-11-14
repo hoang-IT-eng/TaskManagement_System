@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using TaskManagement.API.Http;
 using TaskManagement.Application.Abstractions;
+using TaskManagement.Application.Common;
 using TaskManagement.Application.Contracts;
 
 namespace TaskManagement.API.Controllers.V1;
@@ -22,7 +23,6 @@ public sealed class AuthCookieOptions
 [ApiController]
 [Route("api/v1/auth")]
 [ApiExplorerSettings(GroupName = "v1")]
-[Produces("application/json")]
 public sealed class AuthController(IAuthService auth, IOptions<AuthCookieOptions> cookie) : ControllerBase
 {
     private const string CookiePath = "/api/v1/auth";
@@ -66,10 +66,14 @@ public sealed class AuthController(IAuthService auth, IOptions<AuthCookieOptions
             SetRefreshCookie(session);
             return session.Auth;
         }
-        catch
+        catch (UnauthorizedException ex)
         {
+            // Handled here (not by the global handler) because the exception handler clears response
+            // headers, which would drop the cookie deletion.
             ClearRefreshCookie();
-            throw;
+            var problem = ProblemDetailsFactory.CreateProblemDetails(HttpContext, StatusCodes.Status401Unauthorized, "Unauthorized", detail: ex.Message);
+            problem.Extensions["code"] = ex.Code;
+            return new ObjectResult(problem) { StatusCode = StatusCodes.Status401Unauthorized, ContentTypes = { "application/problem+json" } };
         }
     }
 
