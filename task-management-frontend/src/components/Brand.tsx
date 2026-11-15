@@ -1,7 +1,7 @@
 import type { Priority } from '../api/types';
 import { PRIORITY_LEVEL } from '../lib/meta';
 
-export const BRAND = 'Task Management';
+export const BRAND = 'Layers';
 
 /** Wordmark: three offset strata, the product's one recurring motif. */
 export function Logo({ compact = false }: { compact?: boolean }) {

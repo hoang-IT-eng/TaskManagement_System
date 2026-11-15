@@ -5,6 +5,7 @@
  */
 :root {
   --font: 'Hanken Grotesk Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Space Grotesk Variable', 'Hanken Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
 
   --bg: #eef1ee;          /* fog */
   --bg-sunk: #e4e8e5;     /* column wells */
