@@ -7,6 +7,7 @@ using System;
 namespace TaskManagement.API.Controllers;
 
 [ApiController]
+[ApiExplorerSettings(GroupName = "legacy")]
 [Route("api/admin/positions")]
 [Authorize] // All authenticated users can access
 public class PositionController : ControllerBase
@@ -59,6 +60,7 @@ public class PositionController : ControllerBase
 }
 
 [ApiController]
+[ApiExplorerSettings(GroupName = "legacy")]
 [Route("api/admin/positions")]
 [Authorize(Roles = "Admin")] // Only Admin can modify
 public class PositionAdminController : ControllerBase

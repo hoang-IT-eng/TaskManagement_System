@@ -1,0 +1,19 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+TestResults/
+coverage/
+*.db
+*.db-shm
+*.db-wal
+TaskManagement.API/uploads/*
+!TaskManagement.API/uploads/.gitkeep
+
+# Node
+node_modules/
+dist/
+playwright-report/
+test-results/
+.env.local

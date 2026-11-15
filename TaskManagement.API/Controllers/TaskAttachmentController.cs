@@ -11,6 +11,7 @@ using TaskManagement.Infrastructure.Data;
 namespace TaskManagement.API.Controllers;
 
 [ApiController]
+[ApiExplorerSettings(GroupName = "legacy")]
 [Route("api/project/{projectId}/tasks/{taskId}/attachments")]
 [Authorize]
 public class TaskAttachmentController : ControllerBase

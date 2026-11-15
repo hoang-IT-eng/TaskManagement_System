@@ -8,14 +8,10 @@ public class ActivityLog
     public string Action { get; set; } = string.Empty; // Created, Updated, Deleted
     public string EntityType { get; set; } = string.Empty; // Task, Project, Comment, etc.
     public int EntityId { get; set; }
+    public int? ProjectId { get; set; }
+    public int? TaskId { get; set; }
     public string? OldValue { get; set; } // JSON string
     public string? NewValue { get; set; } // JSON string
     public string? Description { get; set; } // Human-readable description
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
-
-
-
-
-
-

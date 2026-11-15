@@ -10,6 +10,7 @@ using TaskManagement.Infrastructure.Data;
 namespace TaskManagement.API.Controllers;
 
 [ApiController]
+[ApiExplorerSettings(GroupName = "legacy")]
 [Route("api/teams")]
 [Authorize]
 public class TeamController : ControllerBase

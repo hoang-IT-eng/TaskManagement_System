@@ -1,11 +1,18 @@
 using Microsoft.EntityFrameworkCore;
+using TaskManagement.Domain.Common;
 using TaskManagement.Domain.Entities;
 
 namespace TaskManagement.Infrastructure.Data;
 
 public class ApplicationDbContext : DbContext
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) 
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+        : base(options)
+    {
+    }
+
+    /// <summary>Lets provider-specific subclasses (see <see cref="SqliteApplicationDbContext"/>) own their migrations.</summary>
+    protected ApplicationDbContext(DbContextOptions options)
         : base(options)
     {
     }
@@ -21,6 +28,54 @@ public class ApplicationDbContext : DbContext
     public DbSet<Position> Positions { get; set; }
     public DbSet<Team> Teams { get; set; }
     public DbSet<ProjectTeam> ProjectTeams { get; set; }
+    public DbSet<Label> Labels { get; set; }
+    public DbSet<TaskLabel> TaskLabels { get; set; }
+    public DbSet<Notification> Notifications { get; set; }
+    public DbSet<RefreshToken> RefreshTokens { get; set; }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        StampChanges();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        StampChanges();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    /// <summary>
+    /// Bumps <see cref="IVersioned.Version"/> on every modified row and stamps UpdatedAt. Because Version is a
+    /// concurrency token, EF emits "UPDATE ... WHERE Id = @id AND Version = @originalVersion"; a concurrent
+    /// writer that already bumped the row makes that update hit 0 rows and raises DbUpdateConcurrencyException.
+    /// </summary>
+    private void StampChanges()
+    {
+        var now = DateTime.UtcNow;
+        foreach (var entry in ChangeTracker.Entries())
+        {
+            if (entry.State == EntityState.Modified)
+            {
+                if (entry.Entity is IVersioned versioned)
+                    versioned.Version = (int)entry.Property(nameof(IVersioned.Version)).OriginalValue! + 1;
+                if (entry.Entity is IAuditable auditable)
+                    auditable.UpdatedAt = now;
+            }
+            else if (entry.State == EntityState.Added && entry.Entity is IAuditable added)
+            {
+                if (added.CreatedAt == default) added.CreatedAt = now;
+                added.UpdatedAt = now;
+            }
+        }
+    }
+
+    /// <summary>All timestamps are UTC. SQLite drops DateTimeKind, so tag values as UTC on the way out.</summary>
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
+        configurationBuilder.Properties<DateTime?>().HaveConversion<UtcNullableDateTimeConverter>();
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -61,12 +116,6 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Role)
                 .HasMaxLength(50)
                 .HasDefaultValue("Member");
-
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("GETDATE()");
-
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("GETDATE()");
 
             // Foreign key relationships
             entity.HasOne(e => e.Department)
@@ -109,13 +158,7 @@ public class ApplicationDbContext : DbContext
                 .HasDefaultValue("Medium");
 
             entity.Property(e => e.Budget)
-                .HasColumnType("decimal(18,2)");
-
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("GETDATE()");
-
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("GETDATE()");
+                .HasPrecision(18, 2);
 
             // Foreign key relationship
             entity.HasOne(e => e.Owner)
@@ -158,9 +201,6 @@ public class ApplicationDbContext : DbContext
 
             entity.Property(e => e.ProjectRoleCode)
                 .HasMaxLength(50);
-
-            entity.Property(e => e.JoinedAt)
-                .HasDefaultValueSql("GETDATE()");
 
             // Foreign key relationships
             entity.HasOne(e => e.Project)
@@ -214,15 +254,9 @@ public class ApplicationDbContext : DbContext
                 .HasConversion<int>()
                 .IsRequired();
 
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("GETDATE()");
-
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("GETDATE()");
-
             // Foreign key relationships
             entity.HasOne(e => e.Project)
-                .WithMany()
+                .WithMany(p => p.Tasks)
                 .HasForeignKey(e => e.ProjectId)
                 .OnDelete(DeleteBehavior.Cascade);
 
@@ -264,9 +298,6 @@ public class ApplicationDbContext : DbContext
                 .HasMaxLength(100)
                 .IsRequired();
 
-            entity.Property(e => e.UploadedAt)
-                .HasDefaultValueSql("GETDATE()");
-
             // Foreign key relationships
             entity.HasOne(e => e.Task)
                 .WithMany()
@@ -296,15 +327,9 @@ public class ApplicationDbContext : DbContext
                 .HasMaxLength(5000)
                 .IsRequired();
 
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("GETDATE()");
-
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("GETDATE()");
-
             // Foreign key relationships
             entity.HasOne(e => e.Task)
-                .WithMany()
+                .WithMany(t => t.Comments)
                 .HasForeignKey(e => e.TaskId)
                 .OnDelete(DeleteBehavior.Cascade);
 
@@ -338,17 +363,12 @@ public class ApplicationDbContext : DbContext
                 .HasMaxLength(50)
                 .IsRequired();
 
-            entity.Property(e => e.OldValue)
-                .HasColumnType("nvarchar(max)");
+            entity.Property(e => e.OldValue);
 
-            entity.Property(e => e.NewValue)
-                .HasColumnType("nvarchar(max)");
+            entity.Property(e => e.NewValue);
 
             entity.Property(e => e.Description)
                 .HasMaxLength(1000);
-
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("GETDATE()");
 
             // Foreign key relationship
             entity.HasOne(e => e.User)
@@ -376,12 +396,6 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Code)
                 .HasMaxLength(50)
                 .IsRequired();
-
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("GETDATE()");
-
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("GETDATE()");
         });
 
         // Position configuration
@@ -410,12 +424,6 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.WorkflowGroup)
                 .HasMaxLength(50)
                 .IsRequired();
-
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("GETDATE()");
-
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("GETDATE()");
         });
 
         // Team configuration
@@ -435,12 +443,6 @@ public class ApplicationDbContext : DbContext
 
             entity.Property(e => e.Description)
                 .HasMaxLength(2000);
-
-            entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("GETDATE()");
-
-            entity.Property(e => e.UpdatedAt)
-                .HasDefaultValueSql("GETDATE()");
 
             // Foreign key relationship
             entity.HasOne(e => e.Leader)
@@ -470,9 +472,6 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.TeamId)
                 .HasDatabaseName("IX_ProjectTeams_TeamId");
 
-            entity.Property(e => e.AssignedAt)
-                .HasDefaultValueSql("GETDATE()");
-
             // Foreign key relationships
             entity.HasOne(e => e.Project)
                 .WithMany(p => p.ProjectTeams)
@@ -483,6 +482,82 @@ public class ApplicationDbContext : DbContext
                 .WithMany(t => t.ProjectTeams)
                 .HasForeignKey(e => e.TeamId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ---- Layers upgrade: ordering, concurrency, labels, notifications, refresh tokens ----
+        modelBuilder.Entity<Project>(entity =>
+        {
+            entity.Property(e => e.Key).HasMaxLength(6).IsRequired();
+            entity.Property(e => e.Color).HasMaxLength(7).IsRequired();
+            entity.Property(e => e.Version).IsConcurrencyToken();
+        });
+
+        modelBuilder.Entity<ProjectTask>(entity =>
+        {
+            entity.Property(e => e.Version).IsConcurrencyToken();
+            entity.HasIndex(e => new { e.ProjectId, e.Number }).IsUnique()
+                .HasDatabaseName("IX_ProjectTasks_ProjectId_Number");
+            // Board query: WHERE ProjectId = @p AND IsActive ORDER BY Status, Rank
+            entity.HasIndex(e => new { e.ProjectId, e.IsActive, e.Status, e.Rank })
+                .HasDatabaseName("IX_ProjectTasks_Board");
+            // "My work" queries on the dashboard
+            entity.HasIndex(e => new { e.AssigneeId, e.IsActive, e.Status })
+                .HasDatabaseName("IX_ProjectTasks_Assignee_Status");
+        });
+
+        modelBuilder.Entity<Label>(entity =>
+        {
+            entity.HasKey(e => e.LabelId);
+            entity.Property(e => e.Name).HasMaxLength(40).IsRequired();
+            entity.Property(e => e.Color).HasMaxLength(7).IsRequired();
+            entity.HasIndex(e => new { e.ProjectId, e.Name }).IsUnique()
+                .HasDatabaseName("IX_Labels_ProjectId_Name");
+            entity.HasOne(e => e.Project).WithMany(p => p.Labels)
+                .HasForeignKey(e => e.ProjectId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TaskLabel>(entity =>
+        {
+            entity.HasKey(e => new { e.TaskId, e.LabelId });
+            entity.HasIndex(e => e.LabelId).HasDatabaseName("IX_TaskLabels_LabelId");
+            entity.HasOne(e => e.Task).WithMany(t => t.Labels)
+                .HasForeignKey(e => e.TaskId).OnDelete(DeleteBehavior.Cascade);
+            // NoAction (not Cascade) so SQL Server does not see two cascade paths from Project.
+            entity.HasOne(e => e.Label).WithMany(l => l.Tasks)
+                .HasForeignKey(e => e.LabelId).OnDelete(DeleteBehavior.ClientCascade);
+        });
+
+        modelBuilder.Entity<ActivityLog>(entity =>
+        {
+            entity.HasIndex(e => new { e.ProjectId, e.CreatedAt })
+                .HasDatabaseName("IX_ActivityLogs_ProjectId_CreatedAt");
+            entity.HasIndex(e => new { e.TaskId, e.CreatedAt })
+                .HasDatabaseName("IX_ActivityLogs_TaskId_CreatedAt");
+        });
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.HasKey(e => e.NotificationId);
+            entity.Property(e => e.Type).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Message).HasMaxLength(500).IsRequired();
+            entity.HasIndex(e => new { e.UserId, e.IsRead, e.CreatedAt })
+                .HasDatabaseName("IX_Notifications_User_Unread");
+            entity.HasOne(e => e.User).WithMany()
+                .HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Actor).WithMany()
+                .HasForeignKey(e => e.ActorId).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasKey(e => e.RefreshTokenId);
+            entity.Property(e => e.TokenHash).HasMaxLength(64).IsRequired();
+            entity.Property(e => e.ReplacedByHash).HasMaxLength(64);
+            entity.Property(e => e.CreatedByIp).HasMaxLength(64);
+            entity.HasIndex(e => e.TokenHash).IsUnique().HasDatabaseName("IX_RefreshTokens_TokenHash");
+            entity.HasIndex(e => e.UserId).HasDatabaseName("IX_RefreshTokens_UserId");
+            entity.HasOne(e => e.User).WithMany(u => u.RefreshTokens)
+                .HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // Seed Data
@@ -568,3 +643,11 @@ public class ApplicationDbContext : DbContext
         );
     }
 }
+
+internal sealed class UtcDateTimeConverter() : Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime, DateTime>(
+    v => v.Kind == DateTimeKind.Local ? v.ToUniversalTime() : DateTime.SpecifyKind(v, DateTimeKind.Utc),
+    v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+internal sealed class UtcNullableDateTimeConverter() : Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime?, DateTime?>(
+    v => v == null ? v : v.Value.Kind == DateTimeKind.Local ? v.Value.ToUniversalTime() : DateTime.SpecifyKind(v.Value, DateTimeKind.Utc),
+    v => v == null ? v : DateTime.SpecifyKind(v.Value, DateTimeKind.Utc));

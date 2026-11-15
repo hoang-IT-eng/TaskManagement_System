@@ -36,9 +36,7 @@ namespace TaskManagement.Infrastructure.Migrations
                         .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
@@ -58,6 +56,12 @@ namespace TaskManagement.Infrastructure.Migrations
                     b.Property<string>("OldValue")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("ProjectId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TaskId")
+                        .HasColumnType("int");
+
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
@@ -74,6 +78,12 @@ namespace TaskManagement.Infrastructure.Migrations
 
                     b.HasIndex("UserId")
                         .HasDatabaseName("IX_ActivityLogs_UserId");
+
+                    b.HasIndex("ProjectId", "CreatedAt")
+                        .HasDatabaseName("IX_ActivityLogs_ProjectId_CreatedAt");
+
+                    b.HasIndex("TaskId", "CreatedAt")
+                        .HasDatabaseName("IX_ActivityLogs_TaskId_CreatedAt");
 
                     b.ToTable("ActivityLogs");
                 });
@@ -92,9 +102,7 @@ namespace TaskManagement.Infrastructure.Migrations
                         .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -105,9 +113,7 @@ namespace TaskManagement.Infrastructure.Migrations
                         .HasColumnType("nvarchar(255)");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
 
                     b.HasKey("DepartmentId");
 
@@ -150,6 +156,85 @@ namespace TaskManagement.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("TaskManagement.Domain.Entities.Label", b =>
+                {
+                    b.Property<int>("LabelId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("LabelId"));
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("nvarchar(7)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<int>("ProjectId")
+                        .HasColumnType("int");
+
+                    b.HasKey("LabelId");
+
+                    b.HasIndex("ProjectId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Labels_ProjectId_Name");
+
+                    b.ToTable("Labels");
+                });
+
+            modelBuilder.Entity("TaskManagement.Domain.Entities.Notification", b =>
+                {
+                    b.Property<int>("NotificationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("NotificationId"));
+
+                    b.Property<int?>("ActorId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("ProjectId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TaskId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("NotificationId");
+
+                    b.HasIndex("ActorId");
+
+                    b.HasIndex("UserId", "IsRead", "CreatedAt")
+                        .HasDatabaseName("IX_Notifications_User_Unread");
+
+                    b.ToTable("Notifications");
+                });
+
             modelBuilder.Entity("TaskManagement.Domain.Entities.Position", b =>
                 {
                     b.Property<int>("PositionId")
@@ -164,9 +249,7 @@ namespace TaskManagement.Infrastructure.Migrations
                         .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -177,9 +260,7 @@ namespace TaskManagement.Infrastructure.Migrations
                         .HasColumnType("nvarchar(255)");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("WorkflowGroup")
                         .IsRequired()
@@ -252,12 +333,16 @@ namespace TaskManagement.Infrastructure.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProjectId"));
 
                     b.Property<decimal?>("Budget")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("nvarchar(7)");
+
                     b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Description")
                         .HasMaxLength(2000)
@@ -269,10 +354,18 @@ namespace TaskManagement.Infrastructure.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasMaxLength(6)
+                        .HasColumnType("nvarchar(6)");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
+
+                    b.Property<int>("NextTaskNumber")
+                        .HasColumnType("int");
 
                     b.Property<int>("OwnerId")
                         .HasColumnType("int");
@@ -295,9 +388,11 @@ namespace TaskManagement.Infrastructure.Migrations
                         .HasDefaultValue("Planning");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
 
                     b.HasKey("ProjectId");
 
@@ -325,9 +420,7 @@ namespace TaskManagement.Infrastructure.Migrations
                         .HasColumnType("bit");
 
                     b.Property<DateTime>("JoinedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("LastAccessedAt")
                         .HasColumnType("datetime2");
@@ -384,9 +477,7 @@ namespace TaskManagement.Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("CreatedById")
                         .HasColumnType("int");
@@ -404,11 +495,17 @@ namespace TaskManagement.Infrastructure.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<int>("Number")
+                        .HasColumnType("int");
+
                     b.Property<int>("Priority")
                         .HasColumnType("int");
 
                     b.Property<int>("ProjectId")
                         .HasColumnType("int");
+
+                    b.Property<double>("Rank")
+                        .HasColumnType("float");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -419,9 +516,11 @@ namespace TaskManagement.Infrastructure.Migrations
                         .HasColumnType("nvarchar(500)");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
 
                     b.HasKey("TaskId");
 
@@ -448,6 +547,16 @@ namespace TaskManagement.Infrastructure.Migrations
                     b.HasIndex("Status")
                         .HasDatabaseName("IX_ProjectTasks_Status");
 
+                    b.HasIndex("ProjectId", "Number")
+                        .IsUnique()
+                        .HasDatabaseName("IX_ProjectTasks_ProjectId_Number");
+
+                    b.HasIndex("AssigneeId", "IsActive", "Status")
+                        .HasDatabaseName("IX_ProjectTasks_Assignee_Status");
+
+                    b.HasIndex("ProjectId", "IsActive", "Status", "Rank")
+                        .HasDatabaseName("IX_ProjectTasks_Board");
+
                     b.ToTable("ProjectTasks");
                 });
 
@@ -460,9 +569,7 @@ namespace TaskManagement.Infrastructure.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("AssignedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("ProjectId")
                         .HasColumnType("int");
@@ -483,6 +590,51 @@ namespace TaskManagement.Infrastructure.Migrations
                         .HasDatabaseName("IX_ProjectTeams_ProjectId_TeamId");
 
                     b.ToTable("ProjectTeams");
+                });
+
+            modelBuilder.Entity("TaskManagement.Domain.Entities.RefreshToken", b =>
+                {
+                    b.Property<int>("RefreshTokenId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RefreshTokenId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedByIp")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReplacedByHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("RefreshTokenId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique()
+                        .HasDatabaseName("IX_RefreshTokens_TokenHash");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_RefreshTokens_UserId");
+
+                    b.ToTable("RefreshTokens");
                 });
 
             modelBuilder.Entity("TaskManagement.Domain.Entities.TaskAttachment", b =>
@@ -515,9 +667,7 @@ namespace TaskManagement.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime>("UploadedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("UploadedById")
                         .HasColumnType("int");
@@ -547,9 +697,7 @@ namespace TaskManagement.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -558,9 +706,7 @@ namespace TaskManagement.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
@@ -579,6 +725,22 @@ namespace TaskManagement.Infrastructure.Migrations
                     b.ToTable("TaskComments");
                 });
 
+            modelBuilder.Entity("TaskManagement.Domain.Entities.TaskLabel", b =>
+                {
+                    b.Property<int>("TaskId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LabelId")
+                        .HasColumnType("int");
+
+                    b.HasKey("TaskId", "LabelId");
+
+                    b.HasIndex("LabelId")
+                        .HasDatabaseName("IX_TaskLabels_LabelId");
+
+                    b.ToTable("TaskLabels");
+                });
+
             modelBuilder.Entity("TaskManagement.Domain.Entities.Team", b =>
                 {
                     b.Property<int>("TeamId")
@@ -588,9 +750,7 @@ namespace TaskManagement.Infrastructure.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TeamId"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Description")
                         .HasMaxLength(2000)
@@ -608,9 +768,7 @@ namespace TaskManagement.Infrastructure.Migrations
                         .HasColumnType("nvarchar(255)");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
 
                     b.HasKey("TeamId");
 
@@ -640,9 +798,7 @@ namespace TaskManagement.Infrastructure.Migrations
                         .HasColumnType("nvarchar(1000)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
 
                     b.Property<int?>("DepartmentId")
                         .HasColumnType("int");
@@ -692,9 +848,7 @@ namespace TaskManagement.Infrastructure.Migrations
                         .HasDefaultValue("UTC+7");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
 
                     b.HasKey("UserId");
 
@@ -719,6 +873,35 @@ namespace TaskManagement.Infrastructure.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TaskManagement.Domain.Entities.Label", b =>
+                {
+                    b.HasOne("TaskManagement.Domain.Entities.Project", "Project")
+                        .WithMany("Labels")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("TaskManagement.Domain.Entities.Notification", b =>
+                {
+                    b.HasOne("TaskManagement.Domain.Entities.User", "Actor")
+                        .WithMany()
+                        .HasForeignKey("ActorId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("TaskManagement.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Actor");
 
                     b.Navigation("User");
                 });
@@ -772,7 +955,7 @@ namespace TaskManagement.Infrastructure.Migrations
                         .IsRequired();
 
                     b.HasOne("TaskManagement.Domain.Entities.Project", "Project")
-                        .WithMany()
+                        .WithMany("Tasks")
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -805,6 +988,17 @@ namespace TaskManagement.Infrastructure.Migrations
                     b.Navigation("Team");
                 });
 
+            modelBuilder.Entity("TaskManagement.Domain.Entities.RefreshToken", b =>
+                {
+                    b.HasOne("TaskManagement.Domain.Entities.User", "User")
+                        .WithMany("RefreshTokens")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("TaskManagement.Domain.Entities.TaskAttachment", b =>
                 {
                     b.HasOne("TaskManagement.Domain.Entities.ProjectTask", "Task")
@@ -827,7 +1021,7 @@ namespace TaskManagement.Infrastructure.Migrations
             modelBuilder.Entity("TaskManagement.Domain.Entities.TaskComment", b =>
                 {
                     b.HasOne("TaskManagement.Domain.Entities.ProjectTask", "Task")
-                        .WithMany()
+                        .WithMany("Comments")
                         .HasForeignKey("TaskId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -841,6 +1035,25 @@ namespace TaskManagement.Infrastructure.Migrations
                     b.Navigation("Task");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("TaskManagement.Domain.Entities.TaskLabel", b =>
+                {
+                    b.HasOne("TaskManagement.Domain.Entities.Label", "Label")
+                        .WithMany("Tasks")
+                        .HasForeignKey("LabelId")
+                        .OnDelete(DeleteBehavior.ClientCascade)
+                        .IsRequired();
+
+                    b.HasOne("TaskManagement.Domain.Entities.ProjectTask", "Task")
+                        .WithMany("Labels")
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Label");
+
+                    b.Navigation("Task");
                 });
 
             modelBuilder.Entity("TaskManagement.Domain.Entities.Team", b =>
@@ -871,16 +1084,37 @@ namespace TaskManagement.Infrastructure.Migrations
                     b.Navigation("Position");
                 });
 
+            modelBuilder.Entity("TaskManagement.Domain.Entities.Label", b =>
+                {
+                    b.Navigation("Tasks");
+                });
+
             modelBuilder.Entity("TaskManagement.Domain.Entities.Project", b =>
                 {
+                    b.Navigation("Labels");
+
                     b.Navigation("Members");
 
                     b.Navigation("ProjectTeams");
+
+                    b.Navigation("Tasks");
+                });
+
+            modelBuilder.Entity("TaskManagement.Domain.Entities.ProjectTask", b =>
+                {
+                    b.Navigation("Comments");
+
+                    b.Navigation("Labels");
                 });
 
             modelBuilder.Entity("TaskManagement.Domain.Entities.Team", b =>
                 {
                     b.Navigation("ProjectTeams");
+                });
+
+            modelBuilder.Entity("TaskManagement.Domain.Entities.User", b =>
+                {
+                    b.Navigation("RefreshTokens");
                 });
 #pragma warning restore 612, 618
         }
