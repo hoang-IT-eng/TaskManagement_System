@@ -4,6 +4,7 @@ import { useAuth } from './auth/AuthContext';
 import { AppShell } from './layout/AppShell';
 import { AuthPage } from './pages/AuthPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { LandingPage } from './pages/LandingPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { ProjectPage } from './pages/ProjectPage';
 import { InboxPage } from './pages/InboxPage';
@@ -25,17 +26,18 @@ function RequireAuth({ children }: { children: ReactNode }) {
 function GuestOnly({ children }: { children: ReactNode }) {
   const { user, booting } = useAuth();
   if (booting) return <Splash />;
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to="/home" replace />;
   return <>{children}</>;
 }
 
 export function App() {
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<GuestOnly><AuthPage mode="login" /></GuestOnly>} />
       <Route path="/register" element={<GuestOnly><AuthPage mode="register" /></GuestOnly>} />
       <Route element={<RequireAuth><AppShell /></RequireAuth>}>
-        <Route index element={<DashboardPage />} />
+        <Route path="home" element={<DashboardPage />} />
         <Route path="projects" element={<ProjectsPage />} />
         <Route path="projects/:projectId/*" element={<ProjectPage />} />
         <Route path="inbox" element={<InboxPage />} />
@@ -48,6 +50,6 @@ export function App() {
 
 function NotFound() {
   return (
-    <div className="page"><div className="empty"><h3>Nothing lives here</h3><p>The page you followed does not exist or you no longer have access.</p><a className="btn" href="/">Go home</a></div></div>
+    <div className="page"><div className="empty"><h3>Nothing lives here</h3><p>The page you followed does not exist or you no longer have access.</p><a className="btn" href="/home">Go home</a></div></div>
   );
 }

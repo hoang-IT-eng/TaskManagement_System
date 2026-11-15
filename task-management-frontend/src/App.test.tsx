@@ -57,16 +57,23 @@ describe('App routing', () => {
     expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeInTheDocument();
   });
 
+  it('shows the marketing landing to signed-out visitors', async () => {
+    mockFetch({ 'POST /auth/refresh': () => ({ status: 401 }) });
+    renderAt('/');
+    expect(await screen.findByRole('heading', { name: /Work in layers/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Open board' }).length).toBeGreaterThan(0);
+  });
+
   it('restores the session from the refresh cookie and shows the shell with unread badge', async () => {
     routes({ 'GET /dashboard': () => ({ status: 500, body: { detail: 'boom' } }) });
-    renderAt('/');
+    renderAt('/home');
     expect(await screen.findAllByText('Atelier storefront')).not.toHaveLength(0);
     expect(screen.getAllByLabelText('2 unread').length).toBeGreaterThan(0);
   });
 
   it('signs out from the sidebar', async () => {
     const { calls } = routes({ 'GET /dashboard': () => ({ status: 500 }), 'POST /auth/logout': () => ({ status: 204 }) });
-    renderAt('/');
+    renderAt('/home');
     await userEvent.click(await screen.findByRole('button', { name: 'Sign out' }));
     expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeInTheDocument();
     expect(calls.some((c) => c.url.endsWith('/auth/logout'))).toBe(true);

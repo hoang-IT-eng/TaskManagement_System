@@ -43,6 +43,7 @@ export function renderApp(ui: ReactElement, { route = '/under-test', path = '*' 
         <Routes>
           <Route path={path} element={ui} />
           <Route path="/" element={<div>home page</div>} />
+          <Route path="/home" element={<div>home page</div>} />
         </Routes>
       </Providers>
     </MemoryRouter>,

@@ -6,7 +6,7 @@ import { Icon, type IconName } from '../components/Icon';
 import { Skeleton } from '../components/States';
 
 const NAV: { to: string; label: string; icon: IconName; end?: boolean }[] = [
-  { to: '/', label: 'Home', icon: 'home', end: true },
+  { to: '/home', label: 'Home', icon: 'home', end: true },
   { to: '/projects', label: 'Projects', icon: 'folder' },
   { to: '/inbox', label: 'Inbox', icon: 'bell' },
 ];
@@ -25,7 +25,7 @@ export function AppShell() {
   return (
     <div className="shell">
       <aside className="sidebar">
-        <div className="sidebar-top"><NavLink to="/" aria-label="Task Management home"><Logo /></NavLink></div>
+        <div className="sidebar-top"><NavLink to="/home" aria-label="Layers home"><Logo /></NavLink></div>
         <nav className="side-nav" aria-label="Main">
           {NAV.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end} className="side-link">

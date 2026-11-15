@@ -1,10 +1,12 @@
-import { cloneElement, useId, useState, type FormEvent, type ReactElement } from 'react';
+import { cloneElement, useEffect, useId, useRef, useState, type FormEvent, type ReactElement } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { Logo } from '../components/Brand';
 
 export const DEMO = { email: 'hoang@layers.dev', password: 'Layers2026' };
+
+type LocState = { from?: string; demo?: boolean } | null;
 
 export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const { login, register } = useAuth();
@@ -17,6 +19,12 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const isLogin = mode === 'login';
+  const demoAttempted = useRef(false);
+  const locState = loc.state as LocState;
+
+  function destination() {
+    return locState?.from && locState.from !== '/' ? locState.from : '/home';
+  }
 
   function validate() {
     const errs: Record<string, string> = {};
@@ -36,7 +44,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
     try {
       if (isLogin || creds) await login(creds?.email ?? email, creds?.password ?? password);
       else await register(fullName.trim(), email, password);
-      navigate((loc.state as { from?: string } | null)?.from ?? '/', { replace: true });
+      navigate(destination(), { replace: true });
     } catch (err) {
       if (err instanceof ApiError && err.errors) {
         const mapped: Record<string, string> = {};
@@ -48,6 +56,28 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
       setBusy(false);
     }
   }
+
+  useEffect(() => {
+    if (!isLogin || !locState?.demo || demoAttempted.current) return;
+    demoAttempted.current = true;
+    let cancelled = false;
+    (async () => {
+      setBusy(true);
+      setError(null);
+      try {
+        await login(DEMO.email, DEMO.password);
+        if (!cancelled) navigate(destination(), { replace: true });
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof ApiError ? err.message : 'Could not reach the server. Is the API running?');
+          setBusy(false);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+    // Intentional: run once when landing with demo state from the marketing CTA.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLogin, locState?.demo]);
 
   return (
     <div className="auth">
