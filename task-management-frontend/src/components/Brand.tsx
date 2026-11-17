@@ -1,5 +1,5 @@
-import type { Priority } from '../api/types';
-import { PRIORITY_LEVEL } from '../lib/meta';
+import type { IssueType, Priority } from '../api/types';
+import { PRIORITY_LEVEL, TYPE_META } from '../lib/meta';
 
 export const BRAND = 'Layers';
 
@@ -33,6 +33,26 @@ export function PriorityGlyph({ priority, showLabel = false }: { priority: Prior
         ))}
       </svg>
       {showLabel && <span>{priority}</span>}
+    </span>
+  );
+}
+
+/**
+ * Issue type as a small filled square with a white mark, Jira-style: check for a task,
+ * bookmark for a story, ring-and-dot for a bug. Colour never travels alone — the drawer
+ * and filters always pair it with the type's text label.
+ */
+export function TypeGlyph({ type, showLabel = false }: { type: IssueType; showLabel?: boolean }) {
+  const meta = TYPE_META[type];
+  return (
+    <span className={`type tone-${meta.tone}`} title={`${meta.label} type`}>
+      <svg width="16" height="16" viewBox="0 0 16 16" role="img" aria-label={`${meta.label} type`}>
+        <rect width="16" height="16" rx="4" className="type-box" />
+        {type === 'Task' && <path d="M4.6 8.4 7 10.8 11.4 5.4" className="type-mark" />}
+        {type === 'Story' && <path d="M5.2 3.4h5.6v9.2l-2.8-2.2-2.8 2.2z" className="type-mark-fill" />}
+        {type === 'Bug' && <><circle cx="8" cy="8" r="3.4" className="type-mark" /><circle cx="8" cy="8" r="1.1" className="type-dot" /></>}
+      </svg>
+      {showLabel && <span>{meta.label}</span>}
     </span>
   );
 }

@@ -299,6 +299,31 @@ public class TaskServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Issue_type_defaults_to_task_and_can_be_set_filtered_and_changed()
+    {
+        var owner = await _db.UserAsync("Owner One");
+        var p = await _db.ProjectAsync(owner);
+        await using var ctx = _db.NewContext();
+        var s = _db.For(ctx);
+
+        var plain = await s.Tasks.CreateAsync(owner.UserId, p, new CreateTaskRequest("Plain"));
+        var bug = await s.Tasks.CreateAsync(owner.UserId, p, new CreateTaskRequest("Crash on save", Type: ProjectTaskType.Bug));
+        var story = await s.Tasks.CreateAsync(owner.UserId, p, new CreateTaskRequest("As a user I want export", Type: ProjectTaskType.Story));
+
+        Assert.Equal(ProjectTaskType.Task, plain.Type);
+        Assert.Equal(ProjectTaskType.Bug, bug.Type);
+        Assert.Equal(ProjectTaskType.Story, story.Type);
+
+        Assert.Equal(["Crash on save"], (await s.Tasks.ListAsync(owner.UserId, p, new TaskQuery(Type: ProjectTaskType.Bug))).Items.Select(t => t.Title));
+        var board = await s.Tasks.GetBoardAsync(owner.UserId, p, new TaskQuery(Type: ProjectTaskType.Story));
+        Assert.Equal(["As a user I want export"], board.Columns.SelectMany(c => c.Tasks).Select(t => t.Title));
+
+        var changed = await s.Tasks.UpdateAsync(owner.UserId, p, plain.Id, new UpdateTaskRequest(plain.Version, Type: ProjectTaskType.Bug));
+        Assert.Equal(ProjectTaskType.Bug, changed.Type);
+        Assert.Equal(2, (await s.Tasks.ListAsync(owner.UserId, p, new TaskQuery(Type: ProjectTaskType.Bug))).Total);
+    }
+
+    [Fact]
     public async Task Viewers_can_read_but_not_write_and_strangers_get_not_found()
     {
         var owner = await _db.UserAsync("Owner One");

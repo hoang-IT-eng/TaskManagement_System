@@ -1,6 +1,6 @@
 import { forwardRef, type HTMLAttributes } from 'react';
 import type { Task } from '../../api/types';
-import { Avatar, PriorityGlyph } from '../../components/Brand';
+import { Avatar, PriorityGlyph, TypeGlyph } from '../../components/Brand';
 import { Icon } from '../../components/Icon';
 import { dueState, shortDate } from '../../lib/format';
 
@@ -31,6 +31,7 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard({ ta
     <div ref={ref} className={`card${dragging ? ' is-dragging' : ''}${overlay ? ' is-overlay' : ''}${task.status === 'Done' ? ' is-done' : ''}${className ? ` ${className}` : ''}`}
       data-testid={`card-${task.key}`} {...rest}>
       <div className="card-top">
+        <TypeGlyph type={task.type} />
         <span className="card-key">{task.key}</span>
         <PriorityGlyph priority={task.priority} />
       </div>

@@ -1,5 +1,6 @@
 export type TaskStatus = 'Todo' | 'InProgress' | 'InReview' | 'Done' | 'Cancelled';
 export type Priority = 'Low' | 'Medium' | 'High' | 'Urgent';
+export type IssueType = 'Task' | 'Story' | 'Bug';
 export type ProjectRole = 'Owner' | 'Admin' | 'Member' | 'Viewer';
 
 export interface UserSummary { id: number; fullName: string; email: string; avatarUrl?: string | null; initials: string }
@@ -19,7 +20,7 @@ export interface Label { id: number; name: string; color: string }
 
 export interface Task {
   id: number; key: string; number: number; projectId: number; title: string; description?: string | null;
-  status: TaskStatus; priority: Priority; rank: number; assignee?: UserSummary | null; createdBy: UserSummary;
+  status: TaskStatus; priority: Priority; type: IssueType; rank: number; assignee?: UserSummary | null; createdBy: UserSummary;
   dueDate?: string | null; completedAt?: string | null; estimatedHours?: number | null; labels: Label[];
   commentCount: number; createdAt: string; updatedAt: string; version: number;
 }
@@ -39,10 +40,10 @@ export interface Dashboard {
   upNext: Task[]; projects: ProjectProgress[]; recentActivity: Activity[]; completedPerDay: { day: string; count: number }[];
 }
 
-export interface TaskFilters { search?: string; assigneeId?: number | 'none'; priority?: Priority; labelId?: number; due?: 'overdue' | 'today' | 'week' | 'none' }
+export interface TaskFilters { search?: string; assigneeId?: number | 'none'; priority?: Priority; type?: IssueType; labelId?: number; due?: 'overdue' | 'today' | 'week' | 'none' }
 
 export interface UpdateTaskInput {
-  version: number; title?: string; description?: string; priority?: Priority; status?: TaskStatus;
+  version: number; title?: string; description?: string; priority?: Priority; status?: TaskStatus; type?: IssueType;
   assigneeId?: number; clearAssignee?: boolean; dueDate?: string; clearDueDate?: boolean; estimatedHours?: number; labelIds?: number[];
 }
-export interface CreateTaskInput { title: string; description?: string; status?: TaskStatus; priority?: Priority; assigneeId?: number; dueDate?: string; labelIds?: number[] }
+export interface CreateTaskInput { title: string; description?: string; status?: TaskStatus; priority?: Priority; type?: IssueType; assigneeId?: number; dueDate?: string; estimatedHours?: number; labelIds?: number[] }

@@ -17,6 +17,9 @@ public class ProjectTask : IVersioned, IAuditable
     public ProjectTaskStatus Status { get; set; } = ProjectTaskStatus.Todo;
     public ProjectTaskPriority Priority { get; set; } = ProjectTaskPriority.Medium;
 
+    /// <summary>Jira-style issue type: a plain task, a user story or a bug.</summary>
+    public ProjectTaskType Type { get; set; } = ProjectTaskType.Task;
+
     /// <summary>Sparse ordering key inside a status column (fractional ranking, rebalanced when gaps collapse).</summary>
     public double Rank { get; set; }
 

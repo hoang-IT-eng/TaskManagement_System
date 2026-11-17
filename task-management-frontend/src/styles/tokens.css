@@ -27,6 +27,10 @@
   --tone-done: #3a7b58;
   --tone-cancelled: #a3a9a6;
 
+  --tone-task: #2f6e9e;
+  --tone-story: #3a7b58;
+  --tone-bug: #b5482f;
+
   --brick: #b5482f;
   --brick-tint: #f7e5df;
   --ochre-ink: #8a5a0f;
@@ -50,3 +54,6 @@
 .tone-review { --tone: var(--tone-review); }
 .tone-done { --tone: var(--tone-done); }
 .tone-cancelled { --tone: var(--tone-cancelled); }
+.tone-task { --tone: var(--tone-task); }
+.tone-story { --tone: var(--tone-story); }
+.tone-bug { --tone: var(--tone-bug); }

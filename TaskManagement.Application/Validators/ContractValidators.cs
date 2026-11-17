@@ -113,6 +113,7 @@ public sealed class CreateTaskRequestValidator : AbstractValidator<CreateTaskReq
         RuleFor(x => x.Description).MaximumLength(10_000);
         RuleFor(x => x.Status).IsInEnum();
         RuleFor(x => x.Priority).IsInEnum();
+        RuleFor(x => x.Type).IsInEnum();
         RuleFor(x => x.EstimatedHours).InclusiveBetween(0, 1000).When(x => x.EstimatedHours.HasValue);
         RuleFor(x => x.LabelIds).Must(l => l!.Count <= 10).WithMessage("A task can carry at most 10 labels.")
             .When(x => x.LabelIds is not null);
@@ -128,6 +129,7 @@ public sealed class UpdateTaskRequestValidator : AbstractValidator<UpdateTaskReq
         RuleFor(x => x.Description).MaximumLength(10_000);
         RuleFor(x => x.Priority).IsInEnum().When(x => x.Priority.HasValue);
         RuleFor(x => x.Status).IsInEnum().When(x => x.Status.HasValue);
+        RuleFor(x => x.Type).IsInEnum().When(x => x.Type.HasValue);
         RuleFor(x => x.EstimatedHours).InclusiveBetween(0, 1000).When(x => x.EstimatedHours.HasValue);
         RuleFor(x => x.LabelIds).Must(l => l!.Count <= 10).WithMessage("A task can carry at most 10 labels.")
             .When(x => x.LabelIds is not null);

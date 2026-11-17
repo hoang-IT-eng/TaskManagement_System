@@ -58,14 +58,14 @@ public sealed class DemoSeeder(ApplicationDbContext db, ILogger<DemoSeeder> log)
         await db.SaveChangesAsync(ct);
 
         var rankByColumn = new Dictionary<(int, ProjectTaskStatus), int>();
-        ProjectTask T(Project p, string title, ProjectTaskStatus s, ProjectTaskPriority pr, User? who, int? dueInDays, string[] labels, string? desc = null, int? doneDaysAgo = null)
+        ProjectTask T(Project p, string title, ProjectTaskStatus s, ProjectTaskPriority pr, User? who, int? dueInDays, string[] labels, string? desc = null, int? doneDaysAgo = null, ProjectTaskType type = ProjectTaskType.Task)
         {
             var idx = rankByColumn.GetValueOrDefault((p.ProjectId, s)) + 1;
             rankByColumn[(p.ProjectId, s)] = idx;
             var created = now.AddDays(-Math.Min(20, 2 + p.NextTaskNumber));
             var t = new ProjectTask
             {
-                Project = p, Number = p.NextTaskNumber++, Title = title, Description = desc, Status = s, Priority = pr,
+                Project = p, Number = p.NextTaskNumber++, Title = title, Description = desc, Status = s, Priority = pr, Type = type,
                 Rank = idx * Ranking.Spacing, Assignee = who, CreatedById = hoang.UserId,
                 DueDate = dueInDays is int d ? today.AddDays(d) : null,
                 CompletedAt = s == ProjectTaskStatus.Done ? now.AddDays(-(doneDaysAgo ?? 1)).AddHours(-3) : null,
@@ -77,29 +77,29 @@ public sealed class DemoSeeder(ApplicationDbContext db, ILogger<DemoSeeder> log)
         }
 
         var a1 = T(atelier, "Checkout: guard stock reservation against double submit", ProjectTaskStatus.InProgress, ProjectTaskPriority.Urgent, hoang, 1, ["backend", "bug"],
-            "Two quick taps on Pay create two reservations. Make the reservation idempotent per cart and return the existing one.");
+            "Two quick taps on Pay create two reservations. Make the reservation idempotent per cart and return the existing one.", type: ProjectTaskType.Bug);
         T(atelier, "Payment webhook: verify signature and dedupe events", ProjectTaskStatus.Todo, ProjectTaskPriority.High, minh, 3, ["backend", "feature"]);
         T(atelier, "Size guide drawer on product page", ProjectTaskStatus.Todo, ProjectTaskPriority.Medium, linh, 6, ["design", "feature"]);
-        T(atelier, "Catalogue search returns archived products", ProjectTaskStatus.Todo, ProjectTaskPriority.High, hoang, -2, ["bug"]);
+        T(atelier, "Catalogue search returns archived products", ProjectTaskStatus.Todo, ProjectTaskPriority.High, hoang, -2, ["bug"], type: ProjectTaskType.Bug);
         T(atelier, "Migrate product images to CDN", ProjectTaskStatus.Todo, ProjectTaskPriority.Low, null, null, ["chore"]);
         var a6 = T(atelier, "Order history: paginate and index by customer", ProjectTaskStatus.InReview, ProjectTaskPriority.Medium, minh, 2, ["backend"]);
-        T(atelier, "Cart badge flickers on route change", ProjectTaskStatus.InProgress, ProjectTaskPriority.Low, linh, 4, ["bug", "design"]);
+        T(atelier, "Cart badge flickers on route change", ProjectTaskStatus.InProgress, ProjectTaskPriority.Low, linh, 4, ["bug", "design"], type: ProjectTaskType.Bug);
         T(atelier, "Refresh-token rotation for storefront sessions", ProjectTaskStatus.InReview, ProjectTaskPriority.High, hoang, 0, ["backend", "feature"]);
         T(atelier, "Product card redesign", ProjectTaskStatus.Done, ProjectTaskPriority.Medium, linh, null, ["design"], doneDaysAgo: 1);
         T(atelier, "CORS allow-list per environment", ProjectTaskStatus.Done, ProjectTaskPriority.Medium, hoang, null, ["backend", "chore"], doneDaysAgo: 2);
         T(atelier, "Seed script for staging catalogue", ProjectTaskStatus.Done, ProjectTaskPriority.Low, minh, null, ["chore"], doneDaysAgo: 4);
         T(atelier, "Address form validation messages", ProjectTaskStatus.Done, ProjectTaskPriority.Medium, linh, null, ["design"], doneDaysAgo: 6);
-        T(atelier, "Discount codes: percentage and fixed amount", ProjectTaskStatus.Todo, ProjectTaskPriority.Medium, null, 10, ["feature"]);
+        T(atelier, "Discount codes: percentage and fixed amount", ProjectTaskStatus.Todo, ProjectTaskPriority.Medium, null, 10, ["feature"], type: ProjectTaskType.Story);
 
         T(plates, "Batch upload with per-image status", ProjectTaskStatus.InProgress, ProjectTaskPriority.High, hoang, 2, ["feature"]);
-        T(plates, "Low-light plates misread as 8/B", ProjectTaskStatus.Todo, ProjectTaskPriority.Urgent, minh, -1, ["bug", "backend"]);
+        T(plates, "Low-light plates misread as 8/B", ProjectTaskStatus.Todo, ProjectTaskPriority.Urgent, minh, -1, ["bug", "backend"], type: ProjectTaskType.Bug);
         T(plates, "CSV export of detections", ProjectTaskStatus.Todo, ProjectTaskPriority.Medium, null, 8, ["feature"]);
         T(plates, "Detection history filters", ProjectTaskStatus.Done, ProjectTaskPriority.Medium, hoang, null, ["feature"], doneDaysAgo: 3);
         T(plates, "Bounding-box overlay on results", ProjectTaskStatus.Done, ProjectTaskPriority.High, minh, null, ["design"], doneDaysAgo: 5);
 
         T(mobile, "Offline queue for set logging", ProjectTaskStatus.InProgress, ProjectTaskPriority.High, linh, 5, ["backend", "feature"]);
-        T(mobile, "Coach dashboard: weekly volume chart", ProjectTaskStatus.Todo, ProjectTaskPriority.Medium, hoang, 9, ["feature", "design"]);
-        T(mobile, "Rest timer keeps running after app is killed", ProjectTaskStatus.InReview, ProjectTaskPriority.Medium, linh, 3, ["bug"]);
+        T(mobile, "Coach dashboard: weekly volume chart", ProjectTaskStatus.Todo, ProjectTaskPriority.Medium, hoang, 9, ["feature", "design"], type: ProjectTaskType.Story);
+        T(mobile, "Rest timer keeps running after app is killed", ProjectTaskStatus.InReview, ProjectTaskPriority.Medium, linh, 3, ["bug"], type: ProjectTaskType.Bug);
         T(mobile, "Exercise library search", ProjectTaskStatus.Done, ProjectTaskPriority.Low, linh, null, ["feature"], doneDaysAgo: 8);
         await db.SaveChangesAsync(ct);
 

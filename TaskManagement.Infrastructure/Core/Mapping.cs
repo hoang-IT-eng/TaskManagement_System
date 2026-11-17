@@ -37,6 +37,7 @@ internal static class Mapping
         t.Description,
         t.Status,
         t.Priority,
+        t.Type,
         t.Rank,
         t.Assignee == null ? null : new UserSummary(t.Assignee.UserId, t.Assignee.FullName, t.Assignee.Email, t.Assignee.AvatarUrl, Initials(t.Assignee.FullName)),
         new UserSummary(t.CreatedBy.UserId, t.CreatedBy.FullName, t.CreatedBy.Email, t.CreatedBy.AvatarUrl, Initials(t.CreatedBy.FullName)),

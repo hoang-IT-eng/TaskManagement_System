@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { ApiError } from '../../api/client';
 import { useCreateTask } from '../../api/hooks';
-import type { Label, Member, Priority, Task, TaskStatus } from '../../api/types';
+import type { IssueType, Label, Member, Priority, Task, TaskStatus } from '../../api/types';
 import { Dialog } from '../../components/Overlay';
 import { fromDateInput } from '../../lib/format';
-import { BOARD_STATUSES, PRIORITIES, STATUS_META } from '../../lib/meta';
+import { BOARD_STATUSES, ISSUE_TYPES, PRIORITIES, STATUS_META } from '../../lib/meta';
 import { Field } from '../AuthPage';
 
 export function NewTaskDialog({ projectId, members, labels, onClose, onCreated }: {
@@ -15,6 +15,7 @@ export function NewTaskDialog({ projectId, members, labels, onClose, onCreated }
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<TaskStatus>('Todo');
   const [priority, setPriority] = useState<Priority>('Medium');
+  const [type, setType] = useState<IssueType>('Task');
   const [assigneeId, setAssigneeId] = useState('');
   const [due, setDue] = useState('');
   const [labelIds, setLabelIds] = useState<number[]>([]);
@@ -25,7 +26,7 @@ export function NewTaskDialog({ projectId, members, labels, onClose, onCreated }
     if (!title.trim()) { setError('A task needs a title.'); return; }
     try {
       const t = await create.mutateAsync({
-        title: title.trim(), description: description.trim() || undefined, status, priority,
+        title: title.trim(), description: description.trim() || undefined, status, priority, type,
         assigneeId: assigneeId ? Number(assigneeId) : undefined, dueDate: fromDateInput(due), labelIds,
       });
       onCreated(t);
@@ -45,6 +46,7 @@ export function NewTaskDialog({ projectId, members, labels, onClose, onCreated }
         <div className="grid-2">
           <Field label="Status"><select value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)}>{BOARD_STATUSES.map((s) => <option key={s} value={s}>{STATUS_META[s].label}</option>)}</select></Field>
           <Field label="Priority"><select value={priority} onChange={(e) => setPriority(e.target.value as Priority)}>{PRIORITIES.map((p) => <option key={p}>{p}</option>)}</select></Field>
+          <Field label="Type"><select value={type} onChange={(e) => setType(e.target.value as IssueType)}>{ISSUE_TYPES.map((t) => <option key={t}>{t}</option>)}</select></Field>
           <Field label="Assignee"><select value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}><option value="">Unassigned</option>{members.filter((m) => m.role !== 'Viewer').map((m) => <option key={m.userId} value={m.userId}>{m.fullName}</option>)}</select></Field>
           <Field label="Due date"><input type="date" value={due} onChange={(e) => setDue(e.target.value)} /></Field>
         </div>

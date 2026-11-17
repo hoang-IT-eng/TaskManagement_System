@@ -1,6 +1,6 @@
 import type { Label, Member, TaskFilters } from '../../api/types';
 import { Icon } from '../../components/Icon';
-import { PRIORITIES } from '../../lib/meta';
+import { ISSUE_TYPES, PRIORITIES } from '../../lib/meta';
 
 export function filtersFromParams(p: URLSearchParams): TaskFilters {
   const a = p.get('assignee');
@@ -8,19 +8,20 @@ export function filtersFromParams(p: URLSearchParams): TaskFilters {
     search: p.get('q') ?? undefined,
     assigneeId: a === 'none' ? 'none' : a ? Number(a) : undefined,
     priority: (p.get('priority') as TaskFilters['priority']) ?? undefined,
+    type: (p.get('type') as TaskFilters['type']) ?? undefined,
     labelId: p.get('label') ? Number(p.get('label')) : undefined,
     due: (p.get('due') as TaskFilters['due']) ?? undefined,
   };
 }
 
-export const hasFilters = (f: TaskFilters) => !!(f.search || f.assigneeId || f.priority || f.labelId || f.due);
+export const hasFilters = (f: TaskFilters) => !!(f.search || f.assigneeId || f.priority || f.type || f.labelId || f.due);
 
 interface Props {
   filters: TaskFilters;
   members: Member[];
   labels: Label[];
   meId?: number;
-  onChange(key: 'q' | 'assignee' | 'priority' | 'label' | 'due', value: string | undefined): void;
+  onChange(key: 'q' | 'assignee' | 'priority' | 'type' | 'label' | 'due', value: string | undefined): void;
   onClear(): void;
 }
 
@@ -41,6 +42,10 @@ export function FilterBar({ filters, members, labels, meId, onChange, onClear }:
       <select aria-label="Priority" className={filters.priority ? 'on' : ''} value={filters.priority ?? ''} onChange={(e) => onChange('priority', e.target.value || undefined)}>
         <option value="">Any priority</option>
         {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
+      </select>
+      <select aria-label="Type" className={filters.type ? 'on' : ''} value={filters.type ?? ''} onChange={(e) => onChange('type', e.target.value || undefined)}>
+        <option value="">Any type</option>
+        {ISSUE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
       </select>
       <select aria-label="Label" className={filters.labelId ? 'on' : ''} value={filters.labelId?.toString() ?? ''} onChange={(e) => onChange('label', e.target.value || undefined)}>
         <option value="">Any label</option>

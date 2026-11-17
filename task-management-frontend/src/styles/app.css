@@ -79,6 +79,12 @@ select {
 .avatars > * + * { margin-left: -6px; }
 
 /* priority glyph: bars stack from the bottom */
+.type { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.type .type-box { fill: var(--tone); }
+.type .type-mark { fill: none; stroke: #fff; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.type .type-mark-fill { fill: #fff; }
+.type .type-dot { fill: #fff; }
+
 .prio { display: inline-flex; align-items: center; gap: 6px; flex: none; }
 .prio rect.off { fill: #d5dbd7; }
 .prio-low rect.on { fill: #8b979f; }

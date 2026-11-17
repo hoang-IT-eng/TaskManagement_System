@@ -53,6 +53,7 @@ export function filterTasks(tasks: Task[], f: TaskFilters): Task[] {
   return tasks.filter((t) => {
     if (q && !t.title.toLowerCase().includes(q) && !t.key.toLowerCase().includes(q)) return false;
     if (f.priority && t.priority !== f.priority) return false;
+    if (f.type && t.type !== f.type) return false;
     if (f.assigneeId === 'none' && t.assignee) return false;
     if (typeof f.assigneeId === 'number' && t.assignee?.id !== f.assigneeId) return false;
     if (f.labelId && !t.labels.some((l) => l.id === f.labelId)) return false;

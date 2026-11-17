@@ -44,7 +44,8 @@ Legend: ✅ shipped and covered by tests · 🟡 partial · ⏭️ out of scope 
 - ✅ Drag and drop between and within columns; order stored as a fractional rank with automatic rebalancing.
 - ✅ Optimistic locking: every task carries a `version`; a stale write returns **409** with the server's current copy.
 - ✅ Filters: search (title/key), assignee / unassigned, priority, label, due (overdue, next 24h, next 7 days, none); sort; pagination.
-- ✅ Task detail: title, description, status, priority, assignee, due date, estimate, labels, comments, history.
+- ✅ Issue types (Task / Story / Bug), Jira-style: a coloured type glyph on board cards and list rows, a Type field in the task drawer and the create dialog, a board filter, and a `type` query filter on the API. The `AddTaskType` migrations (SQLite + SQL Server) backfill existing rows to Task.
+- ✅ Task detail: title, description, status, priority, type, assignee, due date, estimate, labels, comments, history.
 - ✅ Comments (edit by the author; delete by the author or a project admin), activity feed per project and per task.
 
 ### Inbox and dashboard

@@ -84,6 +84,7 @@ public sealed class TaskService(
                         Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
                         Status = request.Status,
                         Priority = request.Priority,
+                        Type = request.Type,
                         Rank = Ranking.Between(null, topRank), // new cards land at the top of their column
                         AssigneeId = request.AssigneeId,
                         DueDate = request.DueDate?.Date,
@@ -137,6 +138,11 @@ public sealed class TaskService(
         {
             changes.Add($"priority {task.Priority} → {priority}");
             task.Priority = priority;
+        }
+        if (request.Type is { } type && type != task.Type)
+        {
+            changes.Add($"type {task.Type} → {type}");
+            task.Type = type;
         }
         if (request.Status is { } status && status != task.Status)
         {
@@ -351,6 +357,7 @@ public sealed class TaskService(
     {
         if (f.Status is { } s) q = q.Where(t => t.Status == s);
         if (f.Priority is { } p) q = q.Where(t => t.Priority == p);
+        if (f.Type is { } ty) q = q.Where(t => t.Type == ty);
         if (f.Unassigned == true) q = q.Where(t => t.AssigneeId == null);
         else if (f.AssigneeId is { } a) q = q.Where(t => t.AssigneeId == a);
         if (f.LabelId is { } l) q = q.Where(t => t.Labels.Any(x => x.LabelId == l));

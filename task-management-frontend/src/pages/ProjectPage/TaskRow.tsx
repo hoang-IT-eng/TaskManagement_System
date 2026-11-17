@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { Task } from '../../api/types';
-import { Avatar, PriorityGlyph } from '../../components/Brand';
+import { Avatar, PriorityGlyph, TypeGlyph } from '../../components/Brand';
 import { STATUS_META } from '../../lib/meta';
 import { DueChip, LabelChips } from './TaskCard';
 
@@ -9,6 +9,7 @@ export function TaskRow({ task, href, showProject = false }: { task: Task; href:
   return (
     <Link to={href} className="row" data-testid={`row-${task.key}`}>
       <span className={`row-status tone-${STATUS_META[task.status].tone}`} title={STATUS_META[task.status].label} />
+      <TypeGlyph type={task.type} />
       <PriorityGlyph priority={task.priority} />
       <span className="row-key">{task.key}</span>
       <span className="row-title truncate">{task.title}</span>

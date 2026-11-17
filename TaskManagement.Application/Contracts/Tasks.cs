@@ -12,7 +12,8 @@ public record TaskQuery(
     string? Due = null,          // overdue | today | week | none
     string? Sort = null,         // rank | due | priority | updated | created (prefix '-' for desc)
     int Page = 1,
-    int PageSize = 50);
+    int PageSize = 50,
+    ProjectTaskType? Type = null);
 
 public record CreateTaskRequest(
     string Title,
@@ -22,7 +23,8 @@ public record CreateTaskRequest(
     int? AssigneeId = null,
     DateTime? DueDate = null,
     int? EstimatedHours = null,
-    IReadOnlyList<int>? LabelIds = null);
+    IReadOnlyList<int>? LabelIds = null,
+    ProjectTaskType Type = ProjectTaskType.Task);
 
 /// <summary>
 /// Partial update. <see cref="Version"/> is required: it must equal the version the client last read,
@@ -40,7 +42,8 @@ public record UpdateTaskRequest(
     DateTime? DueDate = null,
     bool ClearDueDate = false,
     int? EstimatedHours = null,
-    IReadOnlyList<int>? LabelIds = null);
+    IReadOnlyList<int>? LabelIds = null,
+    ProjectTaskType? Type = null);
 
 /// <summary>Drag-and-drop move: target column plus the neighbours the card was dropped between.</summary>
 public record MoveTaskRequest(int Version, ProjectTaskStatus Status, int? BeforeTaskId = null, int? AfterTaskId = null);
@@ -54,6 +57,7 @@ public record TaskDto(
     string? Description,
     ProjectTaskStatus Status,
     ProjectTaskPriority Priority,
+    ProjectTaskType Type,
     double Rank,
     UserSummary? Assignee,
     UserSummary CreatedBy,

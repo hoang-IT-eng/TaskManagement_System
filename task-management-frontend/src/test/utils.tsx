@@ -57,7 +57,7 @@ let n = 0;
 export function makeTask(over: Partial<Task> = {}): Task {
   n += 1;
   return {
-    id: n, key: `ATL-${n}`, number: n, projectId: 1, title: `Task ${n}`, description: null, status: 'Todo', priority: 'Medium',
+    id: n, key: `ATL-${n}`, number: n, projectId: 1, title: `Task ${n}`, description: null, status: 'Todo', priority: 'Medium', type: 'Task',
     rank: n * 1024, assignee: null, createdBy: people.hoang, dueDate: null, completedAt: null, estimatedHours: null, labels: [],
     commentCount: 0, createdAt: '2026-11-10T00:00:00Z', updatedAt: '2026-11-10T00:00:00Z', version: 1, ...over,
   };

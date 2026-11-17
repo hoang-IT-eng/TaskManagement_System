@@ -4,13 +4,13 @@ import { ApiError } from '../../api/client';
 import { keys, useAddComment, useComments, useDeleteComment, useDeleteTask, useTask, useTaskActivity, useUpdateTask } from '../../api/hooks';
 import type { Label, Member, Task, UpdateTaskInput } from '../../api/types';
 import { useAuth } from '../../auth/AuthContext';
-import { Avatar, PriorityGlyph } from '../../components/Brand';
+import { Avatar, PriorityGlyph, TypeGlyph } from '../../components/Brand';
 import { Icon } from '../../components/Icon';
 import { Drawer } from '../../components/Overlay';
 import { ErrorState, Skeleton } from '../../components/States';
 import { useToast } from '../../components/Toast';
 import { fromDateInput, timeAgo, toDateInput } from '../../lib/format';
-import { BOARD_STATUSES, PRIORITIES, STATUS_META } from '../../lib/meta';
+import { BOARD_STATUSES, ISSUE_TYPES, PRIORITIES, STATUS_META } from '../../lib/meta';
 import { ActivityList } from '../DashboardPage';
 
 type Patch = Omit<UpdateTaskInput, 'version'>;
@@ -113,6 +113,11 @@ export function TaskDetail({ task, projectId, members, labels, editable, onClose
           <dd className="with-glyph"><PriorityGlyph priority={task.priority} />
             <select value={task.priority} disabled={!editable} aria-label="Priority" onChange={(e) => save({ priority: e.target.value as Task['priority'] })}>
               {PRIORITIES.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select></dd>
+          <dt>Type</dt>
+          <dd className="with-glyph"><TypeGlyph type={task.type} />
+            <select value={task.type} disabled={!editable} aria-label="Type" onChange={(e) => save({ type: e.target.value as Task['type'] })}>
+              {ISSUE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select></dd>
           <dt>Assignee</dt>
           <dd className="with-glyph">{task.assignee && <Avatar name={task.assignee.fullName} initials={task.assignee.initials} size={24} />}

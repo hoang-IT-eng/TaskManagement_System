@@ -1,4 +1,4 @@
-import type { Priority, ProjectRole, TaskStatus } from '../api/types';
+import type { IssueType, Priority, ProjectRole, TaskStatus } from '../api/types';
 
 export const BOARD_STATUSES: TaskStatus[] = ['Todo', 'InProgress', 'InReview', 'Done'];
 
@@ -11,6 +11,13 @@ export const STATUS_META: Record<TaskStatus, { label: string; tone: string }> = 
 };
 
 export const PRIORITIES: Priority[] = ['Urgent', 'High', 'Medium', 'Low'];
+
+export const ISSUE_TYPES: IssueType[] = ['Task', 'Story', 'Bug'];
+export const TYPE_META: Record<IssueType, { label: string; tone: string }> = {
+  Task: { label: 'Task', tone: 'task' },
+  Story: { label: 'Story', tone: 'story' },
+  Bug: { label: 'Bug', tone: 'bug' },
+};
 export const PRIORITY_LEVEL: Record<Priority, number> = { Low: 1, Medium: 2, High: 3, Urgent: 4 };
 
 export const ROLES: ProjectRole[] = ['Owner', 'Admin', 'Member', 'Viewer'];
