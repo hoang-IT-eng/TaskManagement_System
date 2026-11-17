@@ -80,3 +80,8 @@ public interface IDashboardService
 {
     Task<DashboardDto> GetAsync(int userId, CancellationToken ct = default);
 }
+
+public interface IAiCopilotService
+{
+    Task<AiChatResponse> ChatAsync(int userId, AiChatRequest request, CancellationToken ct = default);
+}

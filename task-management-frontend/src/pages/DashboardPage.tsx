@@ -3,14 +3,18 @@ import { useDashboard } from '../api/hooks';
 import type { Activity, Dashboard } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { Avatar } from '../components/Brand';
+import { Icon } from '../components/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../components/States';
+import { usePreferences } from '../context/PreferencesContext';
 import { TaskRow } from './ProjectPage/TaskRow';
 import { greeting, timeAgo } from '../lib/format';
 
 export function DashboardPage() {
   const { user } = useAuth();
+  const { setCopilotOpen, setPaletteOpen } = usePreferences();
   const q = useDashboard();
   const first = user?.fullName.split(' ').slice(-1)[0];
+  const primaryProject = q.data?.projects[0];
 
   return (
     <div className="page">
@@ -18,6 +22,14 @@ export function DashboardPage() {
         <div>
           <h1>{greeting()}, {first}</h1>
           <p className="muted">{q.data ? summaryLine(q.data) : '\u00a0'}</p>
+        </div>
+        <div className="dash-head-actions">
+          <button type="button" className="btn btn-sm" onClick={() => setPaletteOpen(true)}>
+            <Icon name="command" size={14} /><span>Jump</span><kbd className="kbd">⌘K</kbd>
+          </button>
+          <button type="button" className="btn btn-sm btn-copilot" onClick={() => setCopilotOpen(true)}>
+            <Icon name="sparkle" size={14} /><span>AI Sprint Copilot</span>
+          </button>
         </div>
       </header>
 
@@ -30,54 +42,74 @@ export function DashboardPage() {
         <Figure label="Finished this week" value={q.data?.completedLast7Days} tone="good" />
       </section>
 
+      {primaryProject && (
+        <section className="agile-strip" aria-label="Agile workspace shortcuts">
+          <div className="agile-strip-title">
+            <span className="sprint-pill"><span className="sprint-dot" />Agile Workspace</span>
+            <strong>{primaryProject.key} · {primaryProject.name}</strong>
+          </div>
+          <div className="agile-strip-links">
+            <Link to={`/projects/${primaryProject.id}`} className="btn btn-sm">
+              <Icon name="board" size={14} />Active Sprint Board
+            </Link>
+            <Link to={`/projects/${primaryProject.id}/backlog`} className="btn btn-sm">
+              <Icon name="backlog" size={14} />Backlog & Planning
+            </Link>
+            <Link to={`/projects/${primaryProject.id}/analytics`} className="btn btn-sm">
+              <Icon name="chart" size={14} />Burndown & Velocity
+            </Link>
+          </div>
+        </section>
+      )}
+
       <div className="dash-grid">
         <div className="dash-col">
-        <section className="panel dash-next">
-          <header className="panel-head"><h2>Up next for you</h2><span className="muted">Due soonest first</span></header>
-          {q.isLoading && <ListSkeleton />}
-          {q.data && q.data.upNext.length === 0 && (
-            <EmptyState title="Your plate is clear" art={false}>Nothing open is assigned to you. Pick something up from a project board.</EmptyState>
-          )}
-          {q.data && q.data.upNext.length > 0 && (
-            <ul className="rows">{q.data.upNext.map((t) => <li key={t.id}><TaskRow task={t} href={`/projects/${t.projectId}?task=${t.id}`} showProject /></li>)}</ul>
-          )}
-        </section>
+          <section className="panel dash-next">
+            <header className="panel-head"><h2>Up next for you</h2><span className="muted">Due soonest first</span></header>
+            {q.isLoading && <ListSkeleton />}
+            {q.data && q.data.upNext.length === 0 && (
+              <EmptyState title="Your plate is clear" art={false}>Nothing open is assigned to you. Pick something up from a project board.</EmptyState>
+            )}
+            {q.data && q.data.upNext.length > 0 && (
+              <ul className="rows">{q.data.upNext.map((t) => <li key={t.id}><TaskRow task={t} href={`/projects/${t.projectId}?task=${t.id}`} showProject /></li>)}</ul>
+            )}
+          </section>
 
-        <section className="panel dash-activity">
-          <header className="panel-head"><h2>Recent activity</h2></header>
-          {q.isLoading && <ListSkeleton />}
-          {q.data && q.data.recentActivity.length === 0 && <EmptyState title="Quiet so far" art={false}>Changes across your projects will show up here.</EmptyState>}
-          <ActivityList items={q.data?.recentActivity ?? []} />
-        </section>
+          <section className="panel dash-activity">
+            <header className="panel-head"><h2>Recent activity</h2></header>
+            {q.isLoading && <ListSkeleton />}
+            {q.data && q.data.recentActivity.length === 0 && <EmptyState title="Quiet so far" art={false}>Changes across your projects will show up here.</EmptyState>}
+            <ActivityList items={q.data?.recentActivity ?? []} />
+          </section>
         </div>
 
         <div className="dash-col">
-        <section className="panel dash-projects">
-          <header className="panel-head"><h2>Projects</h2><Link to="/projects" className="link">All projects</Link></header>
-          {q.isLoading && <ListSkeleton />}
-          {q.data && q.data.projects.length === 0 && <EmptyState title="No projects yet" art={false} action={<Link to="/projects" className="btn">Create a project</Link>} />}
-          <ul className="progress-list">
-            {q.data?.projects.map((p) => {
-              const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
-              return (
-                <li key={p.id}>
-                  <Link to={`/projects/${p.id}`} className="progress-item">
-                    <span className="progress-name"><span className="dot" style={{ background: p.color }} />{p.name}<span className="key">{p.key}</span></span>
-                    <span className="progress-meta">{p.done}/{p.total} done{p.overdue > 0 && <span className="overdue-chip">{p.overdue} overdue</span>}</span>
-                    <span className="progress-track" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${p.name} ${pct}% done`}>
-                      <span style={{ width: `${pct}%`, background: p.color }} />
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+          <section className="panel dash-projects">
+            <header className="panel-head"><h2>Projects</h2><Link to="/projects" className="link">All projects</Link></header>
+            {q.isLoading && <ListSkeleton />}
+            {q.data && q.data.projects.length === 0 && <EmptyState title="No projects yet" art={false} action={<Link to="/projects" className="btn">Create a project</Link>} />}
+            <ul className="progress-list">
+              {q.data?.projects.map((p) => {
+                const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
+                return (
+                  <li key={p.id}>
+                    <Link to={`/projects/${p.id}`} className="progress-item">
+                      <span className="progress-name"><span className="dot" style={{ background: p.color }} />{p.name}<span className="key">{p.key}</span></span>
+                      <span className="progress-meta tabular">{p.done}/{p.total} done{p.overdue > 0 && <span className="overdue-chip">{p.overdue} overdue</span>}</span>
+                      <span className="progress-track" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={`${p.name} ${pct}% done`}>
+                        <span style={{ width: `${pct}%`, background: p.color }} />
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
 
-        <section className="panel dash-throughput">
-          <header className="panel-head"><h2>Finished per day</h2><span className="muted">Last 14 days, all your projects</span></header>
-          {q.isLoading ? <Skeleton h={120} /> : q.data && <Throughput data={q.data.completedPerDay} />}
-        </section>
+          <section className="panel dash-throughput">
+            <header className="panel-head"><h2>Finished per day</h2><span className="muted">Last 14 days, all your projects</span></header>
+            {q.isLoading ? <Skeleton h={120} /> : q.data && <Throughput data={q.data.completedPerDay} />}
+          </section>
         </div>
       </div>
     </div>

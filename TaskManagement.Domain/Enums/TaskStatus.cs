@@ -6,6 +6,7 @@ public enum ProjectTaskStatus
     InProgress = 2,     // Đang làm
     InReview = 3,       // Đang review
     Done = 4,           // Hoàn thành
-    Cancelled = 5       // Đã hủy
+    Cancelled = 5,      // Đã hủy
+    Backlog = 6         // Product backlog
 }
 

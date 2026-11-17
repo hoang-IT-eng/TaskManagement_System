@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from './client';
+import { api, ApiError } from './client';
 import type {
   Activity, Board, Comment, CreateTaskInput, Dashboard, Label, Member, Notification, Paged, Project,
-  ProjectRole, Task, TaskFilters, TaskStatus, UpdateTaskInput, UserSummary,
+  ProjectRole, Sprint, SprintAnalytics, Task, TaskFilters, TaskStatus, UpdateTaskInput, UserSummary, WipLimits,
 } from './types';
 
 export const keys = {
@@ -10,6 +10,9 @@ export const keys = {
   projects: (search = '') => ['projects', search] as const,
   project: (id: number) => ['project', id] as const,
   board: (id: number) => ['board', id] as const,
+  projectTasks: (id: number) => ['project-tasks', id] as const,
+  sprints: (id: number) => ['sprints', id] as const,
+  analytics: (id: number) => ['analytics', id] as const,
   members: (id: number) => ['members', id] as const,
   labels: (id: number) => ['labels', id] as const,
   task: (pid: number, tid: number) => ['task', pid, tid] as const,
@@ -26,6 +29,44 @@ export const useProjects = (search = '') =>
 
 export const useProject = (id: number) => useQuery({ queryKey: keys.project(id), queryFn: () => api<Project>(`/projects/${id}`) });
 export const useBoard = (id: number) => useQuery({ queryKey: keys.board(id), queryFn: () => api<Board>(`/projects/${id}/board`) });
+
+export const useProjectTasks = (id: number, enabled = true) =>
+  useQuery({
+    queryKey: keys.projectTasks(id),
+    enabled: enabled && id > 0,
+    queryFn: async () => {
+      try {
+        return await api<Paged<Task>>(`/projects/${id}/tasks`, { query: { pageSize: 200 } });
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 404) {
+          return { items: [], page: 1, pageSize: 200, total: 0, totalPages: 1 };
+        }
+        throw e;
+      }
+    },
+  });
+
+export const useSprints = (id: number, enabled = true) =>
+  useQuery({
+    queryKey: keys.sprints(id),
+    enabled: enabled && id > 0,
+    queryFn: async () => {
+      try {
+        return await api<Sprint[]>(`/projects/${id}/sprints`);
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 404) return [];
+        throw e;
+      }
+    },
+  });
+
+export const useSprintAnalytics = (id: number, enabled = true) =>
+  useQuery({
+    queryKey: keys.analytics(id),
+    enabled: enabled && id > 0,
+    queryFn: () => api<SprintAnalytics>(`/projects/${id}/analytics`),
+  });
+
 export const useMembers = (id: number) => useQuery({ queryKey: keys.members(id), queryFn: () => api<Member[]>(`/projects/${id}/members`) });
 export const useLabels = (id: number) => useQuery({ queryKey: keys.labels(id), queryFn: () => api<Label[]>(`/projects/${id}/labels`) });
 
@@ -46,17 +87,20 @@ export const searchUsers = (search: string) => api<Paged<UserSummary>>('/users',
 /** Applies board filters client-side; the board endpoint returns the whole board in rank order. */
 export function filterTasks(tasks: Task[], f: TaskFilters): Task[] {
   const q = f.search?.trim().toLowerCase();
-  // Same instant-based windows as the API's ?due= filter.
   const now = new Date();
   const in24h = new Date(now.getTime() + 86_400_000);
   const in7d = new Date(now.getTime() + 7 * 86_400_000);
   return tasks.filter((t) => {
-    if (q && !t.title.toLowerCase().includes(q) && !t.key.toLowerCase().includes(q)) return false;
+    if (q && !t.title.toLowerCase().includes(q) && !t.key.toLowerCase().includes(q) && !(t.epicTitle ?? '').toLowerCase().includes(q)) return false;
     if (f.priority && t.priority !== f.priority) return false;
     if (f.type && t.type !== f.type) return false;
     if (f.assigneeId === 'none' && t.assignee) return false;
     if (typeof f.assigneeId === 'number' && t.assignee?.id !== f.assigneeId) return false;
     if (f.labelId && !t.labels.some((l) => l.id === f.labelId)) return false;
+    if (f.epicId === 'none' && t.epicId) return false;
+    if (typeof f.epicId === 'number' && t.epicId !== f.epicId) return false;
+    if (f.sprintId === 'backlog' && t.sprintId) return false;
+    if (typeof f.sprintId === 'number' && t.sprintId !== f.sprintId) return false;
     if (f.due) {
       const due = t.dueDate ? new Date(t.dueDate) : null;
       const open = t.status !== 'Done' && t.status !== 'Cancelled';
@@ -69,10 +113,13 @@ export function filterTasks(tasks: Task[], f: TaskFilters): Task[] {
   });
 }
 
-function useInvalidateProject(pid: number) {
+export function useInvalidateProject(pid: number) {
   const qc = useQueryClient();
   return () => {
     qc.invalidateQueries({ queryKey: keys.board(pid) });
+    qc.invalidateQueries({ queryKey: keys.projectTasks(pid) });
+    qc.invalidateQueries({ queryKey: keys.sprints(pid) });
+    qc.invalidateQueries({ queryKey: keys.analytics(pid) });
     qc.invalidateQueries({ queryKey: keys.project(pid) });
     qc.invalidateQueries({ queryKey: keys.dashboard });
     qc.invalidateQueries({ queryKey: ['projects'] });
@@ -84,6 +131,15 @@ export function useCreateProject() {
   return useMutation({
     mutationFn: (body: { name: string; key?: string; description?: string; color?: string }) => api<Project>('/projects', { method: 'POST', body }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['projects'] }); qc.invalidateQueries({ queryKey: keys.dashboard }); },
+  });
+}
+
+export function useUpdateProject(pid: number) {
+  const invalidate = useInvalidateProject(pid);
+  return useMutation({
+    mutationFn: (body: { name?: string; description?: string; color?: string; wipLimits?: WipLimits }) =>
+      api<Project>(`/projects/${pid}`, { method: 'PATCH', body }),
+    onSuccess: invalidate,
   });
 }
 
@@ -131,6 +187,30 @@ export function useMoveTask(pid: number) {
     onError: (_e, _v, ctx) => { if (ctx?.previous) qc.setQueryData(keys.board(pid), ctx.previous); },
     onSettled: invalidate,
   });
+}
+
+export function useSprintMutations(pid: number) {
+  const invalidate = useInvalidateProject(pid);
+  return {
+    create: useMutation({
+      mutationFn: (body: { name?: string; goal?: string; startDate?: string; endDate?: string }) =>
+        api<Sprint>(`/projects/${pid}/sprints`, { method: 'POST', body }),
+      onSuccess: invalidate,
+    }),
+    update: useMutation({
+      mutationFn: ({ sprintId, ...body }: { sprintId: number; name?: string; goal?: string; state?: 'active' | 'planned'; startDate?: string; endDate?: string }) =>
+        api<Sprint>(`/projects/${pid}/sprints/${sprintId}`, { method: 'PATCH', body }),
+      onSuccess: invalidate,
+    }),
+    complete: useMutation({
+      mutationFn: ({ sprintId, targetSprintId, autoStartNext }: { sprintId: number; targetSprintId?: number | null; autoStartNext?: boolean }) =>
+        api<{ completedSprint: Sprint; rolledOver: number; nextSprint: Sprint | null }>(`/projects/${pid}/sprints/${sprintId}/complete`, {
+          method: 'POST',
+          body: { targetSprintId, autoStartNext },
+        }),
+      onSuccess: invalidate,
+    }),
+  };
 }
 
 export function useAddComment(pid: number, tid: number) {

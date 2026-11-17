@@ -51,7 +51,9 @@ public static class DependencyInjection
         services.AddScoped<ICommentService, CommentService>();
         services.AddScoped<IActivityService, ActivityService>();
         services.AddScoped<INotificationService, NotificationService>();
+        services.AddHttpClient();
         services.AddScoped<IDashboardService, DashboardService>();
+        services.AddScoped<IAiCopilotService, AiCopilotService>();
         services.AddScoped<DemoSeeder>();
 
         // Legacy services still used by the pre-v1 controllers (teams, profile/avatar, attachments).

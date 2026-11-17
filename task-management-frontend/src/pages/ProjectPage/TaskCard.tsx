@@ -1,6 +1,6 @@
 import { forwardRef, type HTMLAttributes } from 'react';
 import type { Task } from '../../api/types';
-import { Avatar, PriorityGlyph, TypeGlyph } from '../../components/Brand';
+import { Avatar, EpicBadge, PriorityGlyph, StoryPointsBadge, TypeGlyph } from '../../components/Brand';
 import { Icon } from '../../components/Icon';
 import { dueState, shortDate } from '../../lib/format';
 
@@ -24,6 +24,16 @@ export function LabelChips({ labels, max = 2 }: { labels: Task['labels']; max?: 
   );
 }
 
+export function SubtaskProgressChip({ subtasks }: { subtasks?: Task['subtasks'] }) {
+  if (!subtasks || subtasks.length === 0) return null;
+  const done = subtasks.filter((s) => s.done).length;
+  return (
+    <span className={`subtask-chip tabular${done === subtasks.length ? ' is-complete' : ''}`} title={`${done} of ${subtasks.length} subtasks complete`}>
+      <Icon name="check" size={12} />{done}/{subtasks.length}
+    </span>
+  );
+}
+
 type Props = { task: Task; dragging?: boolean; overlay?: boolean } & HTMLAttributes<HTMLDivElement>;
 
 export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard({ task, dragging, overlay, className, ...rest }, ref) {
@@ -31,16 +41,27 @@ export const TaskCard = forwardRef<HTMLDivElement, Props>(function TaskCard({ ta
     <div ref={ref} className={`card${dragging ? ' is-dragging' : ''}${overlay ? ' is-overlay' : ''}${task.status === 'Done' ? ' is-done' : ''}${className ? ` ${className}` : ''}`}
       data-testid={`card-${task.key}`} {...rest}>
       <div className="card-top">
-        <TypeGlyph type={task.type} />
-        <span className="card-key">{task.key}</span>
+        <span className="card-id-group">
+          <TypeGlyph type={task.type} />
+          <span className="card-key tabular">{task.key}</span>
+        </span>
         <PriorityGlyph priority={task.priority} />
       </div>
       <p className="card-title">{task.title}</p>
-      <LabelChips labels={task.labels} />
+      {(task.epicKey || task.epicTitle || task.labels.length > 0) && (
+        <div className="card-tags">
+          <EpicBadge epicKey={task.epicKey} epicTitle={task.epicTitle} color={task.epicColor} />
+          <LabelChips labels={task.labels} />
+        </div>
+      )}
       <div className="card-foot">
-        <DueChip task={task} />
+        <span className="card-foot-start">
+          <DueChip task={task} />
+          <SubtaskProgressChip subtasks={task.subtasks} />
+        </span>
         <span className="card-foot-end">
-          {task.commentCount > 0 && <span className="card-comments" aria-label={`${task.commentCount} comments`}><Icon name="comment" size={13} />{task.commentCount}</span>}
+          {task.commentCount > 0 && <span className="card-comments tabular" aria-label={`${task.commentCount} comments`}><Icon name="comment" size={13} />{task.commentCount}</span>}
+          <StoryPointsBadge points={task.storyPoints} />
           {task.assignee
             ? <Avatar name={task.assignee.fullName} initials={task.assignee.initials} size={24} />
             : <span className="avatar avatar-empty" title="Unassigned" aria-label="Unassigned" />}

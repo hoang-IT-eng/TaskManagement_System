@@ -1,17 +1,20 @@
 import { useMemo } from 'react';
 import { NavLink, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ApiError } from '../../api/client';
-import { filterTasks, useBoard, useLabels, useMembers, useProject } from '../../api/hooks';
+import { filterTasks, useBoard, useLabels, useMembers, useProject, useProjectTasks, useSprints } from '../../api/hooks';
 import type { Task, TaskStatus } from '../../api/types';
 import { useAuth } from '../../auth/AuthContext';
 import { Avatar } from '../../components/Brand';
 import { Icon } from '../../components/Icon';
 import { EmptyState, ErrorState, Skeleton } from '../../components/States';
+import { usePreferences } from '../../context/PreferencesContext';
 import { BOARD_STATUSES, canEdit } from '../../lib/meta';
-import { BoardView } from './BoardView';
+import { BacklogView } from './BacklogView';
+import { BoardView, type GroupByMode } from './BoardView';
 import { FilterBar, filtersFromParams, hasFilters } from './FilterBar';
 import { ListView } from './ListView';
 import { ProjectSettings } from './ProjectSettings';
+import { SprintAnalyticsView } from './SprintAnalyticsView';
 import { TaskDrawer } from './TaskDrawer';
 import { NewTaskDialog } from './NewTaskDialog';
 
@@ -19,19 +22,40 @@ export function ProjectPage() {
   const projectId = Number(useParams().projectId);
   const project = useProject(projectId);
   const board = useBoard(projectId);
+  const allProjectTasks = useProjectTasks(projectId);
+  const sprints = useSprints(projectId);
   const members = useMembers(projectId);
   const labels = useLabels(projectId);
   const { user } = useAuth();
+  const { setCopilotOpen } = usePreferences();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
 
   const filters = filtersFromParams(params);
+  const groupBy = ((params.get('group') as GroupByMode) || 'none');
   const openTaskId = params.get('task') ? Number(params.get('task')) : null;
   const creating = params.get('new') === '1';
   const editable = canEdit(project.data?.myRole);
 
+  const epics = useMemo(
+    () => (allProjectTasks.data?.items ?? []).filter((t) => t.type === 'Epic'),
+    [allProjectTasks.data],
+  );
+
+  const activeSprint = useMemo(
+    () => (sprints.data ?? []).find((s) => s.state === 'active') ?? null,
+    [sprints.data],
+  );
+
+  const backlogMergedTasks = useMemo(() => {
+    if (allProjectTasks.data && allProjectTasks.data.items.length > 0) {
+      return allProjectTasks.data.items;
+    }
+    return board.data?.columns.flatMap((c) => c.tasks) ?? [];
+  }, [allProjectTasks.data, board.data]);
+
   const visible = useMemo(() => {
-    const out = {} as Record<TaskStatus, Task[]>;
+    const out = { Backlog: [], Todo: [], InProgress: [], InReview: [], Done: [], Cancelled: [] } as Record<TaskStatus, Task[]>;
     for (const s of BOARD_STATUSES) out[s] = filterTasks(board.data?.columns.find((c) => c.status === s)?.tasks ?? [], filters);
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -68,23 +92,61 @@ export function ProjectPage() {
             {members.data?.slice(0, 5).map((m) => <Avatar key={m.userId} name={m.fullName} initials={m.initials} size={28} ring />)}
             {(members.data?.length ?? 0) > 5 && <span className="avatar ring more">+{members.data!.length - 5}</span>}
           </div>
+          <button
+            type="button"
+            className="btn btn-copilot"
+            onClick={() => setCopilotOpen(true)}
+            title="Open Layers AI Sprint Copilot (Cmd/Ctrl + J)"
+          >
+            <Icon name="sparkle" size={15} /><span>AI Copilot</span>
+          </button>
           {editable && <button className="btn btn-primary" onClick={() => setParam('new', '1')}><Icon name="plus" size={16} /><span>New task</span></button>}
         </div>
       </header>
 
       <nav className="view-tabs" aria-label="Project views">
         <NavLink to={`/projects/${projectId}`} end className="view-tab"><Icon name="board" size={16} />Board</NavLink>
+        <NavLink to={`/projects/${projectId}/backlog`} className="view-tab"><Icon name="backlog" size={16} />Backlog</NavLink>
         <NavLink to={`/projects/${projectId}/list`} className="view-tab"><Icon name="list" size={16} />List</NavLink>
+        <NavLink to={`/projects/${projectId}/analytics`} className="view-tab"><Icon name="chart" size={16} />Analytics</NavLink>
         <NavLink to={`/projects/${projectId}/settings`} className="view-tab"><Icon name="settings" size={16} />People & labels</NavLink>
       </nav>
 
       <Routes>
         <Route path="settings" element={p ? <ProjectSettings project={p} /> : <Skeleton h={200} />} />
+        <Route path="analytics" element={<SprintAnalyticsView projectId={projectId} />} />
+        <Route path="backlog" element={
+          <>
+            <FilterBar
+              filters={filters}
+              members={members.data ?? []}
+              labels={labels.data ?? []}
+              epics={epics}
+              meId={user?.id}
+              onChange={(k, v) => setParam(k, v)}
+              onClear={() => setParams(new URLSearchParams(openTaskId ? { task: String(openTaskId) } : {}), { replace: true })}
+            />
+            <BacklogView
+              projectId={projectId}
+              tasks={backlogMergedTasks}
+              sprints={sprints.data ?? []}
+              filters={filters}
+              editable={editable}
+              onOpenTask={(t) => setParam('task', String(t.id))}
+            />
+          </>
+        } />
         <Route path="*" element={
           <>
-            <FilterBar filters={filters} members={members.data ?? []} labels={labels.data ?? []} meId={user?.id}
+            <FilterBar
+              filters={filters}
+              members={members.data ?? []}
+              labels={labels.data ?? []}
+              epics={epics}
+              meId={user?.id}
               onChange={(k, v) => setParam(k, v)}
-              onClear={() => setParams(new URLSearchParams(openTaskId ? { task: String(openTaskId) } : {}), { replace: true })} />
+              onClear={() => setParams(new URLSearchParams(openTaskId ? { task: String(openTaskId) } : {}), { replace: true })}
+            />
             {board.isError && <ErrorState error={board.error} onRetry={() => board.refetch()} />}
             {board.isLoading && <BoardSkeleton />}
             {board.data && totalTasks === 0 && !hasFilters(filters) && (
@@ -96,7 +158,20 @@ export function ProjectPage() {
             {board.data && (totalTasks > 0 || hasFilters(filters)) && (
               <Routes>
                 <Route path="list" element={<ListView projectId={projectId} visible={visible} />} />
-                <Route path="*" element={<BoardView projectId={projectId} board={board.data} visible={visible} editable={editable} filtered={hasFilters(filters)} onOpen={(t) => setParam('task', String(t.id))} />} />
+                <Route path="*" element={
+                  <BoardView
+                    projectId={projectId}
+                    board={board.data}
+                    visible={visible}
+                    editable={editable}
+                    filtered={hasFilters(filters)}
+                    wipLimits={p?.wipLimits}
+                    activeSprint={activeSprint}
+                    groupBy={groupBy}
+                    onGroupByChange={(next) => setParam('group', next === 'none' ? undefined : next)}
+                    onOpen={(t) => setParam('task', String(t.id))}
+                  />
+                } />
               </Routes>
             )}
           </>
@@ -104,11 +179,29 @@ export function ProjectPage() {
       </Routes>
 
       {openTaskId && (
-        <TaskDrawer key={openTaskId} projectId={projectId} taskId={openTaskId} members={members.data ?? []} labels={labels.data ?? []} editable={editable} onClose={() => setParam('task')} />
+        <TaskDrawer
+          key={openTaskId}
+          projectId={projectId}
+          projectKey={p?.key}
+          taskId={openTaskId}
+          members={members.data ?? []}
+          labels={labels.data ?? []}
+          epics={epics}
+          sprints={sprints.data ?? []}
+          editable={editable}
+          onClose={() => setParam('task')}
+        />
       )}
       {creating && editable && (
-        <NewTaskDialog projectId={projectId} members={members.data ?? []} labels={labels.data ?? []} onClose={() => setParam('new')}
-          onCreated={(t) => { const n = new URLSearchParams(params); n.delete('new'); n.set('task', String(t.id)); setParams(n); }} />
+        <NewTaskDialog
+          projectId={projectId}
+          members={members.data ?? []}
+          labels={labels.data ?? []}
+          epics={epics}
+          sprints={sprints.data ?? []}
+          onClose={() => setParam('new')}
+          onCreated={(t) => { const n = new URLSearchParams(params); n.delete('new'); n.set('task', String(t.id)); setParams(n); }}
+        />
       )}
     </div>
   );

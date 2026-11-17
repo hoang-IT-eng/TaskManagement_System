@@ -3,18 +3,38 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { session } from '../../api/client';
 import type { Board, Task, TaskStatus } from '../../api/types';
-import { authBody, makeTask, mockFetch, renderApp } from '../../test/utils';
+import { authBody, makeTask, mockFetch, people, renderApp } from '../../test/utils';
 import { BoardView } from './BoardView';
 
 afterEach(() => { vi.unstubAllGlobals(); session.set(null); });
 
 function data() {
-  const todo = [makeTask({ title: 'Write spec' }), makeTask({ title: 'Design board' })];
-  const done = [makeTask({ title: 'Kickoff', status: 'Done' })];
-  const board: Board = { projectId: 1, columns: [
-    { status: 'Todo', tasks: todo }, { status: 'InProgress', tasks: [] }, { status: 'InReview', tasks: [] }, { status: 'Done', tasks: done },
-  ] };
-  const visible: Record<TaskStatus, Task[]> = { Todo: todo, InProgress: [], InReview: [], Done: done, Cancelled: [] };
+  const todo = [
+    makeTask({ id: 1, key: 'LAY-101', title: 'Write spec', epicId: 10, epicKey: 'LAY-10', epicTitle: 'Core Board', storyPoints: 3, assignee: people.hoang }),
+    makeTask({ id: 2, key: 'LAY-102', title: 'Design board', storyPoints: 5 }),
+  ];
+  const inProgress = [
+    makeTask({ id: 3, key: 'LAY-103', title: 'Rank engine', status: 'InProgress', priority: 'Urgent', storyPoints: 5, assignee: people.hoang }),
+    makeTask({ id: 4, key: 'LAY-104', title: 'Swimlanes UI', status: 'InProgress', priority: 'High', storyPoints: 3, assignee: people.linh }),
+  ];
+  const done = [makeTask({ id: 5, key: 'LAY-105', title: 'Kickoff', status: 'Done', storyPoints: 2 })];
+  const board: Board = {
+    projectId: 1,
+    columns: [
+      { status: 'Todo', tasks: todo },
+      { status: 'InProgress', tasks: inProgress },
+      { status: 'InReview', tasks: [] },
+      { status: 'Done', tasks: done },
+    ],
+  };
+  const visible: Record<TaskStatus, Task[]> = {
+    Backlog: [],
+    Todo: todo,
+    InProgress: inProgress,
+    InReview: [],
+    Done: done,
+    Cancelled: [],
+  };
   return { board, visible };
 }
 
@@ -22,7 +42,20 @@ describe('BoardView', () => {
   it('renders four labelled columns with counts and empty states', () => {
     mockFetch({ 'POST /auth/refresh': () => ({ body: authBody }) });
     const { board, visible } = data();
-    renderApp(<BoardView projectId={1} board={board} visible={visible} editable filtered={false} onOpen={() => {}} />);
+    const emptyProgressBoard = {
+      ...board,
+      columns: board.columns.map((c) => (c.status === 'InProgress' ? { ...c, tasks: [] } : c)),
+    };
+    renderApp(
+      <BoardView
+        projectId={1}
+        board={emptyProgressBoard}
+        visible={{ ...visible, InProgress: [] }}
+        editable
+        filtered={false}
+        onOpen={() => {}}
+      />,
+    );
     expect(screen.getByRole('region', { name: 'To do, 2 tasks' })).toBeInTheDocument();
     expect(within(screen.getByTestId('column-InProgress')).getByText('Nothing here yet')).toBeInTheDocument();
     expect(within(screen.getByTestId('column-Done')).getByText('Kickoff')).toBeInTheDocument();
@@ -34,6 +67,32 @@ describe('BoardView', () => {
     renderApp(<BoardView projectId={1} board={board} visible={{ ...visible, Todo: [visible.Todo[0]], Done: [] }} editable filtered onOpen={() => {}} />);
     expect(within(screen.getByTestId('column-Todo')).getByText('1/2')).toBeInTheDocument();
     expect(within(screen.getByTestId('column-Done')).getByText('No cards match the filters')).toBeInTheDocument();
+  });
+
+  it('highlights WIP limit breaches in column headers and switches Group-By swimlanes', async () => {
+    mockFetch({ 'POST /auth/refresh': () => ({ body: authBody }) });
+    const { board, visible } = data();
+    renderApp(
+      <BoardView
+        projectId={1}
+        board={board}
+        visible={visible}
+        editable
+        filtered={false}
+        wipLimits={{ InProgress: 1, InReview: 2 }}
+        onOpen={() => {}}
+      />,
+    );
+
+    const wipBadge = screen.getByTestId('wip-InProgress');
+    expect(wipBadge).toHaveTextContent('2 / 1 MAX');
+    expect(wipBadge).toHaveClass('is-exceeded');
+    expect(screen.getByTestId('column-InProgress')).toHaveClass('wip-exceeded');
+
+    await userEvent.selectOptions(screen.getByLabelText('Group by swimlane'), 'assignee');
+    expect(screen.getByTestId('swimlanes')).toBeInTheDocument();
+    expect(screen.getByText('Tran Hoang')).toBeInTheDocument();
+    expect(screen.getByText('Unassigned')).toBeInTheDocument();
   });
 
   it('opens a card on click and on Enter', async () => {

@@ -1,7 +1,7 @@
 /*
  * Layers design tokens.
- * Direction: "operations notebook" — cool fog paper, ink text, one moss accent.
- * Status colours are the only saturated hues and always travel with a text label or a count.
+ * Direction: "operations & agile engineering notebook" — cool fog paper (light) or crisp graphite slate (dark),
+ * high-contrast ink text, moss/cobalt/amber status accents, strictly ZERO purple clichés.
  */
 :root {
   --font: 'Hanken Grotesk Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -13,23 +13,27 @@
   --sheet-2: #f7f8f6;
   --ink: #17201c;
   --ink-2: #3d4843;
-  --muted: #5d6862;    /* ≥4.5:1 on fog, wells and sheets */
+  --muted: #5d6862;       /* ≥4.5:1 on fog, wells and sheets */
   --rule: #d9dfdb;
   --rule-2: #e7ebe8;
+  --logo-bg: #17201c;
 
   --moss: #2f5d4a;
   --moss-strong: #234637;
   --moss-tint: #e1ebe4;
 
+  --tone-backlog: #6b7885;
   --tone-todo: #85919a;
   --tone-progress: #2f6e9e;
   --tone-review: #b7791f;
   --tone-done: #3a7b58;
   --tone-cancelled: #a3a9a6;
 
+  --tone-epic: #c07a1a;
   --tone-task: #2f6e9e;
   --tone-story: #3a7b58;
   --tone-bug: #b5482f;
+  --tone-subtask: #2b7a78;
 
   --brick: #b5482f;
   --brick-tint: #f7e5df;
@@ -45,15 +49,58 @@
   --shadow-3: 0 12px 40px rgb(23 32 28 / 0.18), 0 2px 6px rgb(23 32 28 / 0.08);
 
   --ease: cubic-bezier(0.2, 0, 0, 1);
-  --sidebar: 248px;
+  --sidebar: 252px;
   --tabbar: 62px;
 }
 
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0f1317;
+  --bg-sunk: #151b22;
+  --sheet: #1b222b;
+  --sheet-2: #212a35;
+  --ink: #e8eef4;
+  --ink-2: #b9c5d2;
+  --muted: #8c9baa;
+  --rule: #2b3643;
+  --rule-2: #232d38;
+  --logo-bg: #22352c;
+
+  --moss: #3d8b6d;
+  --moss-strong: #4ea382;
+  --moss-tint: #183026;
+
+  --tone-backlog: #7f8e9d;
+  --tone-todo: #92a0ad;
+  --tone-progress: #4a90c4;
+  --tone-review: #d99438;
+  --tone-done: #4ca374;
+  --tone-cancelled: #6d7882;
+
+  --tone-epic: #d99438;
+  --tone-task: #4a90c4;
+  --tone-story: #4ca374;
+  --tone-bug: #de654b;
+  --tone-subtask: #3ea39f;
+
+  --brick: #de654b;
+  --brick-tint: #361d18;
+  --ochre-ink: #ebb45b;
+  --ochre-tint: #332611;
+
+  --shadow-1: 0 1px 0 rgb(0 0 0 / 0.25), 0 1px 3px rgb(0 0 0 / 0.32);
+  --shadow-2: 0 4px 12px rgb(0 0 0 / 0.35), 0 10px 28px rgb(0 0 0 / 0.4);
+  --shadow-3: 0 16px 48px rgb(0 0 0 / 0.55), 0 2px 8px rgb(0 0 0 / 0.35);
+}
+
+.tone-backlog { --tone: var(--tone-backlog); }
 .tone-todo { --tone: var(--tone-todo); }
 .tone-progress { --tone: var(--tone-progress); }
 .tone-review { --tone: var(--tone-review); }
 .tone-done { --tone: var(--tone-done); }
 .tone-cancelled { --tone: var(--tone-cancelled); }
+.tone-epic { --tone: var(--tone-epic); }
 .tone-task { --tone: var(--tone-task); }
 .tone-story { --tone: var(--tone-story); }
 .tone-bug { --tone: var(--tone-bug); }
+.tone-subtask { --tone: var(--tone-subtask); }

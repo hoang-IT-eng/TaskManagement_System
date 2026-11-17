@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ApiError } from './api/client';
 import { AuthProvider } from './auth/AuthContext';
 import { ToastProvider } from './components/Toast';
+import { PreferencesProvider } from './context/PreferencesContext';
 
 export function makeQueryClient() {
   return new QueryClient({
@@ -21,9 +22,11 @@ export function Providers({ children, client }: { children: ReactNode; client?: 
   const [qc] = useState(() => client ?? makeQueryClient());
   return (
     <QueryClientProvider client={qc}>
-      <ToastProvider>
-        <AuthProvider>{children}</AuthProvider>
-      </ToastProvider>
+      <PreferencesProvider>
+        <ToastProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ToastProvider>
+      </PreferencesProvider>
     </QueryClientProvider>
   );
 }

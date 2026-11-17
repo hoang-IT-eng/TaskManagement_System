@@ -156,3 +156,8 @@ public sealed class UpdateCommentRequestValidator : AbstractValidator<UpdateComm
 {
     public UpdateCommentRequestValidator() => RuleFor(x => x.Content).NotEmpty().MaximumLength(5000);
 }
+
+public sealed class AiChatRequestValidator : AbstractValidator<AiChatRequest>
+{
+    public AiChatRequestValidator() => RuleFor(x => x.Message).NotEmpty().MaximumLength(4000);
+}

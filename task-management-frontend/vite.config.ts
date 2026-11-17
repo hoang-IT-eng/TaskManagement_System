@@ -13,6 +13,19 @@ export default defineConfig({
     proxy: { '/api': { target: apiTarget, changeOrigin: true } },
   },
   preview: { port: 4173, proxy: { '/api': { target: apiTarget, changeOrigin: true } } },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('@dnd-kit')) return 'dnd';
+            if (id.includes('@tanstack') || id.includes('react-router')) return 'routing-query';
+            return 'vendor';
+          }
+        },
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
