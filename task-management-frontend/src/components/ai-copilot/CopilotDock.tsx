@@ -5,7 +5,7 @@ import type { Project, Task } from '../../api/types';
 import { usePreferences } from '../../context/PreferencesContext';
 import { Icon } from '../Icon';
 import { IssueCardsWidget, RichReplyText, SprintHealthWidget, SubtaskProposalWidget } from './CopilotBlocks';
-import { runCopilotTurn, type CopilotTurn, type CopilotWorkspaceSnapshot } from './copilotEngine';
+import { COPILOT_KEY_STORAGE, getActiveCopilotApiKey, runCopilotTurn, type CopilotTurn, type CopilotWorkspaceSnapshot } from './copilotEngine';
 
 const STARTER_PROMPTS = [
   {
@@ -76,6 +76,8 @@ export function CopilotDock() {
   const [turns, setTurns] = useState<CopilotTurn[]>([]);
   const [input, setInput] = useState('');
   const [thinking, setThinking] = useState(false);
+  const [keyOpen, setKeyOpen] = useState(false);
+  const [keyDraft, setKeyDraft] = useState<string>(() => getActiveCopilotApiKey());
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -151,6 +153,15 @@ export function CopilotDock() {
     navigate(`/projects/${task.projectId}?task=${task.id}`);
   }
 
+  function saveApiKey() {
+    try {
+      window.localStorage.setItem(COPILOT_KEY_STORAGE, keyDraft.trim());
+    } catch {
+      /* ignore */
+    }
+    setKeyOpen(false);
+  }
+
   return (
     <aside className="copilot-dock" role="complementary" aria-label="Layers AI Sprint Copilot" data-testid="copilot-dock">
       <header className="copilot-head">
@@ -162,6 +173,17 @@ export function CopilotDock() {
           </div>
         </div>
         <div className="copilot-head-actions">
+          <button
+            type="button"
+            className="icon-btn"
+            title={t('Configure Gemini API Key (AQ.* / AIza*)', 'Cấu hình Gemini API Key (AQ.* / AIza*)')}
+            aria-label="Configure Gemini API Key"
+            onClick={() => setKeyOpen((v) => !v)}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4" />
+            </svg>
+          </button>
           {turns.length > 0 && (
             <button
               type="button"
@@ -183,6 +205,22 @@ export function CopilotDock() {
           </button>
         </div>
       </header>
+
+      {keyOpen && (
+        <div className="copilot-context-bar" style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <input
+            type="password"
+            value={keyDraft}
+            onChange={(e) => setKeyDraft(e.target.value)}
+            placeholder="AQ.... / AIzaSy..."
+            aria-label="Gemini API Key"
+            style={{ flex: 1, fontSize: '12px', padding: '4px 8px' }}
+          />
+          <button type="button" className="btn btn-primary btn-sm" onClick={saveApiKey}>
+            {t('Save', 'Lưu')}
+          </button>
+        </div>
+      )}
 
       <div className="copilot-context-bar">
         <span className="muted small">{t('Scope:', 'Dự án:')}</span>

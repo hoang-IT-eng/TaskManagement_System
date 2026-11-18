@@ -16,5 +16,7 @@ node_modules/
 dist/
 playwright-report/
 test-results/
-.env.local
+.env
+.env.*
+!.env.example
 TaskManagement.API/wwwroot/

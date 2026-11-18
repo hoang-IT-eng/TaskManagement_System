@@ -396,31 +396,50 @@ function parseTargetStatus(norm: string): TaskStatus | null {
   return null;
 }
 
-async function maybeEnrichWithGemini(userPrompt: string, summaryContext: string): Promise<string | null> {
-  const key = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
-  if (!key) return null;
+export const COPILOT_KEY_STORAGE = 'LAYERS_GEMINI_API_KEY';
+
+export function getActiveCopilotApiKey(): string {
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
-      {
+    const stored = typeof window !== 'undefined' ? window.localStorage.getItem(COPILOT_KEY_STORAGE) : '';
+    if (stored && stored.trim()) return stored.trim();
+  } catch {
+    /* ignore */
+  }
+  return ((import.meta.env.VITE_GEMINI_API_KEY as string | undefined) ?? '').trim();
+}
+
+async function maybeEnrichWithGemini(userPrompt: string, summaryContext: string): Promise<string | null> {
+  const key = getActiveCopilotApiKey();
+  if (!key) return null;
+  const encKey = encodeURIComponent(key);
+  const vertexUrl = `https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:generateContent?key=${encKey}`;
+  const studioUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encKey}`;
+  const endpoints = key.startsWith('AQ.') ? [vertexUrl, studioUrl] : [studioUrl, vertexUrl];
+  const body = JSON.stringify({
+    contents: [{
+      role: 'user',
+      parts: [{
+        text: `You are Layers AI Sprint Copilot inside an Agile Mini-Jira workspace.\nWorkspace Tool Output: ${summaryContext}\nUser Message: ${userPrompt}\nWrite a crisp, high-signal 2-sentence engineering response in the same language as the user (Vietnamese or English). Do not use markdown tables; the interactive UI widget renders below your text.`,
+      }],
+    }],
+  });
+
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            role: 'user',
-            parts: [{
-              text: `You are Layers AI Sprint Copilot inside an Agile Mini-Jira workspace.\nWorkspace Tool Output: ${summaryContext}\nUser Message: ${userPrompt}\nWrite a crisp, high-signal 2-sentence engineering response in the same language as the user (Vietnamese or English). Do not use markdown tables; the interactive UI widget renders below your text.`,
-            }],
-          }],
-        }),
-      },
-    );
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
-  } catch {
-    return null;
+        body,
+      });
+      if (!res.ok) continue;
+      const json = await res.json();
+      const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) return text;
+    } catch {
+      /* try next endpoint */
+    }
   }
+  return null;
 }
 
 /**
@@ -436,7 +455,7 @@ export async function runCopilotTurn(
   const norm = normalizeText(trimmed);
   const isVi = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(trimmed)
     || /\b(tim|chuyen|tao|chia nho|suc khoe|uu tien)\b/.test(norm);
-  const hasGemini = !!(import.meta.env.VITE_GEMINI_API_KEY as string | undefined);
+  const hasGemini = Boolean(getActiveCopilotApiKey());
   const engineName = hasGemini ? 'Gemini 2.5 + Hybrid Tool Engine' : 'Hybrid BM25 + Agile Tool Engine';
 
   // 1. Check Transition Issue intent: e.g. "Move LAY-104 to In Review" / "Chuyển LAY-104 sang Done"

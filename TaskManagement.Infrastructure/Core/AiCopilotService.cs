@@ -161,13 +161,19 @@ public sealed partial class AiCopilotService(
 
     private async Task<string?> TryAugmentWithGeminiAsync(string userPrompt, string groundedContext, CancellationToken ct)
     {
-        var apiKey = GetGeminiKey();
+        var apiKey = GetGeminiKey()?.Trim();
         if (string.IsNullOrWhiteSpace(apiKey)) return null;
 
         try
         {
             var client = httpClientFactory.CreateClient();
-            var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
+            var encodedKey = Uri.EscapeDataString(apiKey);
+            var vertexUrl = $"https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:generateContent?key={encodedKey}";
+            var studioUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={encodedKey}";
+            var endpoints = apiKey.StartsWith("AQ.", StringComparison.Ordinal)
+                ? new[] { vertexUrl, studioUrl }
+                : new[] { studioUrl, vertexUrl };
+
             var payload = new
             {
                 contents = new[]
@@ -179,15 +185,20 @@ public sealed partial class AiCopilotService(
                     }
                 }
             };
-            using var res = await client.PostAsJsonAsync(url, payload, ct);
-            if (!res.IsSuccessStatusCode) return null;
-            using var doc = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
-            return doc.RootElement
-                .GetProperty("candidates")[0]
-                .GetProperty("content")
-                .GetProperty("parts")[0]
-                .GetProperty("text")
-                .GetString();
+
+            foreach (var url in endpoints)
+            {
+                using var res = await client.PostAsJsonAsync(url, payload, ct);
+                if (!res.IsSuccessStatusCode) continue;
+                using var doc = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+                return doc.RootElement
+                    .GetProperty("candidates")[0]
+                    .GetProperty("content")
+                    .GetProperty("parts")[0]
+                    .GetProperty("text")
+                    .GetString();
+            }
+            return null;
         }
         catch (Exception ex)
         {
