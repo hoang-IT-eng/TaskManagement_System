@@ -13,6 +13,27 @@ using TaskManagement.Infrastructure;
 using TaskManagement.Infrastructure.Data;
 using TaskManagement.Infrastructure.Security;
 
+// Load server-side .env (solution root or API directory) without exposing secrets to client bundles
+foreach (var candidateEnv in new[]
+{
+    Path.Combine(Directory.GetCurrentDirectory(), ".env"),
+    Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", ".env")),
+})
+{
+    if (!File.Exists(candidateEnv)) continue;
+    foreach (var rawLine in File.ReadAllLines(candidateEnv))
+    {
+        var line = rawLine.Trim();
+        if (line.Length == 0 || line.StartsWith('#')) continue;
+        var eq = line.IndexOf('=');
+        if (eq <= 0) continue;
+        var key = line[..eq].Trim();
+        var val = line[(eq + 1)..].Trim().Trim('"', '\'');
+        if (!string.IsNullOrEmpty(key) && string.IsNullOrEmpty(Environment.GetEnvironmentVariable(key)))
+            Environment.SetEnvironmentVariable(key, val);
+    }
+}
+
 var builder = WebApplication.CreateBuilder(args);
 var config = builder.Configuration;
 
@@ -136,6 +157,57 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapPost("/api/ai-chat", async (HttpContext http, IHttpClientFactory httpClientFactory, CancellationToken ct) =>
+{
+    var apiKey = (config["GEMINI_API_KEY"] ?? config["Gemini:ApiKey"] ?? "").Trim();
+    if (string.IsNullOrWhiteSpace(apiKey))
+        return Results.Ok(new { reply = (string?)null, engine = "Hybrid BM25 + Agile Tool Engine" });
+
+    using var doc = await System.Text.Json.JsonDocument.ParseAsync(http.Request.Body, cancellationToken: ct);
+    var message = doc.RootElement.TryGetProperty("message", out var mProp) ? (mProp.GetString() ?? "").Trim() : "";
+    var summaryContext = doc.RootElement.TryGetProperty("summaryContext", out var sProp) ? (sProp.GetString() ?? "") : "";
+    if (string.IsNullOrEmpty(message))
+        return Results.BadRequest(new { error = "Missing message" });
+
+    var model = config["GEMINI_MODEL"] ?? "gemini-2.5-flash";
+    var encKey = Uri.EscapeDataString(apiKey);
+    var vertexUrl = $"https://aiplatform.googleapis.com/v1/publishers/google/models/{model}:generateContent?key={encKey}";
+    var studioUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={encKey}";
+    var endpoints = apiKey.StartsWith("AQ.", StringComparison.Ordinal) ? new[] { vertexUrl, studioUrl } : new[] { studioUrl, vertexUrl };
+
+    var client = httpClientFactory.CreateClient();
+    client.Timeout = TimeSpan.FromSeconds(18);
+    var payload = new
+    {
+        contents = new[]
+        {
+            new
+            {
+                role = "user",
+                parts = new[] { new { text = $"You are Layers AI Sprint Copilot inside an Agile Mini-Jira workspace.\nWorkspace Tool Output: {summaryContext}\nUser Message: {message}\nWrite a crisp, high-signal 2-sentence engineering response in the same language as the user (Vietnamese or English). Do not use markdown tables; the interactive UI widget renders below your text." } }
+            }
+        }
+    };
+
+    foreach (var url in endpoints)
+    {
+        try
+        {
+            using var res = await client.PostAsJsonAsync(url, payload, ct);
+            if (!res.IsSuccessStatusCode) continue;
+            using var respDoc = await System.Text.Json.JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+            var text = respDoc.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString()?.Trim();
+            if (!string.IsNullOrEmpty(text))
+                return Results.Ok(new { reply = text, engine = "Gemini 2.5 + Hybrid Tool Engine" });
+        }
+        catch
+        {
+            // try fallback endpoint
+        }
+    }
+
+    return Results.Ok(new { reply = (string?)null, engine = "Hybrid BM25 + Agile Tool Engine" });
+});
 app.MapHealthChecks("/health");
 
 // Serve the built SPA (copied into wwwroot) for client-side routes.

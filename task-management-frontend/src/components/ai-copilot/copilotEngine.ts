@@ -396,50 +396,31 @@ function parseTargetStatus(norm: string): TaskStatus | null {
   return null;
 }
 
-export const COPILOT_KEY_STORAGE = 'LAYERS_GEMINI_API_KEY';
-
-export function getActiveCopilotApiKey(): string {
-  try {
-    const stored = typeof window !== 'undefined' ? window.localStorage.getItem(COPILOT_KEY_STORAGE) : '';
-    if (stored && stored.trim()) return stored.trim();
-  } catch {
-    /* ignore */
+// Scrub any legacy client-side key from earlier sessions so no secret ever sits in localStorage
+try {
+  if (typeof window !== 'undefined') {
+    window.localStorage.removeItem('LAYERS_GEMINI_API_KEY');
   }
-  return ((import.meta.env.VITE_GEMINI_API_KEY as string | undefined) ?? '').trim();
+} catch {
+  /* ignore */
 }
 
-async function maybeEnrichWithGemini(userPrompt: string, summaryContext: string): Promise<string | null> {
-  const key = getActiveCopilotApiKey();
-  if (!key) return null;
-  const encKey = encodeURIComponent(key);
-  const vertexUrl = `https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:generateContent?key=${encKey}`;
-  const studioUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encKey}`;
-  const endpoints = key.startsWith('AQ.') ? [vertexUrl, studioUrl] : [studioUrl, vertexUrl];
-  const body = JSON.stringify({
-    contents: [{
-      role: 'user',
-      parts: [{
-        text: `You are Layers AI Sprint Copilot inside an Agile Mini-Jira workspace.\nWorkspace Tool Output: ${summaryContext}\nUser Message: ${userPrompt}\nWrite a crisp, high-signal 2-sentence engineering response in the same language as the user (Vietnamese or English). Do not use markdown tables; the interactive UI widget renders below your text.`,
-      }],
-    }],
-  });
-
-  for (const url of endpoints) {
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body,
-      });
-      if (!res.ok) continue;
-      const json = await res.json();
-      const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text) return text;
-    } catch {
-      /* try next endpoint */
-    }
+async function maybeEnrichOnServer(userPrompt: string, summaryContext: string): Promise<string | null> {
+  try {
+    const res = await fetch('/api/ai-chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: userPrompt,
+        summaryContext,
+      }),
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return typeof json?.reply === 'string' && json.reply.trim() ? json.reply.trim() : null;
+  } catch {
+    return null;
   }
-  return null;
 }
 
 /**
@@ -455,8 +436,8 @@ export async function runCopilotTurn(
   const norm = normalizeText(trimmed);
   const isVi = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(trimmed)
     || /\b(tim|chuyen|tao|chia nho|suc khoe|uu tien)\b/.test(norm);
-  const hasGemini = Boolean(getActiveCopilotApiKey());
-  const engineName = hasGemini ? 'Gemini 2.5 + Hybrid Tool Engine' : 'Hybrid BM25 + Agile Tool Engine';
+  const baseEngine = 'Hybrid BM25 + Agile Tool Engine';
+  const serverEngine = 'Gemini 2.5 + Hybrid Tool Engine';
 
   // 1. Check Transition Issue intent: e.g. "Move LAY-104 to In Review" / "Chuyển LAY-104 sang Done"
   const keyMatch = trimmed.match(/\b([A-Z]{2,6}-\d+)\b/i);
@@ -475,8 +456,8 @@ export async function runCopilotTurn(
       const fallback = isVi
         ? `Đã chuyển **${updated.key}** sang trạng thái **${targetStatus}** (phiên bản v${updated.version}). Bảng Sprint đã được cập nhật tức thì.`
         : `Transitioned **${updated.key}** to **${targetStatus}** (v${updated.version}). The live board has been updated.`;
-      const reply = (await maybeEnrichWithGemini(trimmed, fallback)) ?? fallback;
-      return { role: 'assistant', content: reply, engine: engineName, toolTraces: [trace], issues: [updated] };
+      const enriched = await maybeEnrichOnServer(trimmed, fallback);
+      return { role: 'assistant', content: enriched ?? fallback, engine: enriched ? serverEngine : baseEngine, toolTraces: [trace], issues: [updated] };
     }
   }
 
@@ -522,8 +503,8 @@ export async function runCopilotTurn(
     const fallback = isVi
       ? `Đã tạo **${created.key}** (${type} · ${priority} · ${storyPoints} pts) vào **${activeSprint?.name ?? snap.project.name}**.`
       : `Created **${created.key}** (${type} · ${priority} · ${storyPoints} pts) in **${activeSprint?.name ?? snap.project.name}**.`;
-    const reply = (await maybeEnrichWithGemini(trimmed, fallback)) ?? fallback;
-    return { role: 'assistant', content: reply, engine: engineName, toolTraces: [trace], issues: [created] };
+    const enriched = await maybeEnrichOnServer(trimmed, fallback);
+    return { role: 'assistant', content: enriched ?? fallback, engine: enriched ? serverEngine : baseEngine, toolTraces: [trace], issues: [created] };
   }
 
   // 3. Check Decompose Epic / Subtask Breakdown intent
@@ -540,11 +521,11 @@ export async function runCopilotTurn(
     const fallback = isVi
       ? `Đã phân rã **${result.goalTitle}** thành **${result.items.length} hạng mục thực thi** (tổng cộng **${totalPts} Story Points**). Chọn các mục bên dưới và bấm phê duyệt để thêm thẳng vào Sprint.`
       : `Decomposed **${result.goalTitle}** into **${result.items.length} estimated work items** (**${totalPts} Story Points** total). Review the selection below and approve to insert directly into the workspace.`;
-    const reply = (await maybeEnrichWithGemini(trimmed, fallback)) ?? fallback;
+    const enriched = await maybeEnrichOnServer(trimmed, fallback);
     return {
       role: 'assistant',
-      content: reply,
-      engine: engineName,
+      content: enriched ?? fallback,
+      engine: enriched ? serverEngine : baseEngine,
       toolTraces: [trace],
       proposal: {
         projectId: snap.project.id,
@@ -569,11 +550,11 @@ export async function runCopilotTurn(
     const fallback = isVi
       ? `Chẩn đoán **${report.sprintName}**: Điểm sức khỏe **${report.healthScore}/100 (${report.statusLabel})** — đã hoàn thành **${report.donePoints}/${report.totalPoints} pts** với **${report.warnings.length} cảnh báo nút thắt**.`
       : `Sprint diagnostic for **${report.sprintName}**: Health **${report.healthScore}/100 (${report.statusLabel})** — **${report.donePoints}/${report.totalPoints} pts** burned with **${report.warnings.length} active bottleneck signal(s)**.`;
-    const reply = (await maybeEnrichWithGemini(trimmed, fallback)) ?? fallback;
+    const enriched = await maybeEnrichOnServer(trimmed, fallback);
     return {
       role: 'assistant',
-      content: reply,
-      engine: engineName,
+      content: enriched ?? fallback,
+      engine: enriched ? serverEngine : baseEngine,
       toolTraces: [trace],
       sprintHealth: report,
     };
@@ -597,12 +578,12 @@ export async function runCopilotTurn(
     : (isVi
       ? `Không tìm thấy công việc nào khớp hoàn toàn trong **${snap.project.key}**. Thử tìm kiếm rộng hơn hoặc yêu cầu phân rã Epic mới.`
       : `No issues matched those exact criteria in **${snap.project.key}**. Try a broader query or ask me to analyze sprint health.`);
-  const reply = (await maybeEnrichWithGemini(trimmed, summaryCtx || 'No matches')) ?? fallback;
+  const enriched = await maybeEnrichOnServer(trimmed, summaryCtx || 'No matches');
 
   return {
     role: 'assistant',
-    content: reply,
-    engine: engineName,
+    content: enriched ?? fallback,
+    engine: enriched ? serverEngine : baseEngine,
     toolTraces: [trace],
     issues: matched,
   };
